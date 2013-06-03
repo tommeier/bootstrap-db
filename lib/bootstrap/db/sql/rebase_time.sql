@@ -76,6 +76,7 @@ BEGIN
     'timestamp with time zone',
     'date'
     )
+    AND table_name <> 'bootstrap_db'
     ORDER BY table_name DESC ) LOOP
     IF column_data.data_type = 'date' THEN
       function_name := 'rebase_date';

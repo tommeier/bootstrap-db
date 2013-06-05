@@ -84,7 +84,12 @@ BEGIN
       function_name := 'rebase_time';
     END IF;
 
-    update_command := format('UPDATE %s SET %I = %s(%L::%s, %L::%s, %s.%s::%s);',
+    update_command := format(
+        'UPDATE %s
+          SET %I = %s(%L::%s, %L::%s, %s.%s::%s)
+          WHERE NOT EXISTS
+          (SELECT id FROM bootstrap_icebox WHERE
+            (table_name = %L AND column_name = %L AND frozen_id = %s.id));',
         column_data.table_name,
         column_data.column_name,
         function_name,
@@ -94,7 +99,12 @@ BEGIN
         column_data.data_type,
         column_data.table_name,
         column_data.column_name,
-        column_data.data_type);
+        column_data.data_type,
+        column_data.table_name,
+        column_data.column_name,
+        column_data.table_name,
+        column_data.column_name
+        );
 
     --RAISE EXCEPTION '%', update_command;
     EXECUTE update_command;

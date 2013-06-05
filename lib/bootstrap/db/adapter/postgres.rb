@@ -22,6 +22,8 @@ module Bootstrap
       end
 
       def dump!
+        save_frozen_attributes!
+
         #pg_dump --help
         dump_command = [
           "pg_dump",
@@ -47,7 +49,7 @@ module Bootstrap
         result = display_and_execute(dump_command.join(' '))
 
         save_generated_time!
-        save_frozen_attributes!
+
 
         result
       end
@@ -116,17 +118,27 @@ module Bootstrap
         generated_time
       end
 
-      # Save any attributes tracked during seeding
-      # Will override any existing after a dump
       def save_frozen_attributes!
-        settings = current_settings
-        settings[:frozen] = {} #Override any existing
+        # Load frozen attributes into table
+        # Rebase task will exclude this if it exists
+        # Override any existing
+        frozen_tables = File.read(File.expand_path('../../sql/frozen_attributes.sql', __FILE__))
 
-        #Set attributes for any frozen
-        frozen_attributes = ::Bootstrap::Db::Rebase.frozen
-        settings[:frozen] = frozen_attributes if frozen_attributes
+        frozen_command = <<-SQL.gsub(/^\s+/,'')
+          #{frozen_tables}
+          #{frozen_insert_commands}
+        SQL
 
-        save_settings!(settings)
+        display_and_execute("#{psql_execute} --command=#{frozen_command.shellescape}")
+        # exit 1
+        # settings = current_settings
+        # settings[:frozen] = {} #Override any existing
+
+        # #Set attributes for any frozen
+        # frozen_attributes = ::Bootstrap::Db::Rebase.frozen
+        # settings[:frozen] = frozen_attributes if frozen_attributes
+
+        # save_settings!(settings)
       end
 
       # Save and track generated time of bootstrap
@@ -159,6 +171,21 @@ module Bootstrap
 
       def settings_path
         @settings_path ||= File.expand_path(File.join(config.bootstrap_dir, '.bootstrap'))
+      end
+
+      # Generate bulk insert statement for any frozen attributes
+      def frozen_insert_commands
+        frozen_attributes = ::Bootstrap::Db::Rebase.frozen
+        return "" unless frozen_attributes
+        insert_command = "INSERT INTO bootstrap_icebox (table_name, column_name, frozen_id) VALUES "
+        frozen_attributes.each do |table_name, frozen_fields|
+          frozen_fields.each do |field_name, frozen_ids|
+            frozen_ids.each do |frozen_id|
+              insert_command << "('#{table_name}','#{field_name}',#{frozen_id}),"
+            end
+          end
+        end
+        "#{insert_command.chop};"
       end
     end
   end

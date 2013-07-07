@@ -87,7 +87,8 @@ namespace :bootstrap do
         display_and_execute("mysql -f -h #{config[Rails.env]["host"]} -u #{config[Rails.env]["username"]}#{password_attrs.to_s} #{config[Rails.env]["database"]} < #{sql_filename}")
       when 'postgresql'
         default_sql_attrs = "--single-transaction"
-        display_and_execute("psql #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432} --dbname=#{config[Rails.env]["database"]} --username=#{config[Rails.env]["username"]} < #{sql_path}")
+        user_attribute    = " --username=#{config[Rails.env]["username"]}" if config[Rails.env]['username']
+        display_and_execute("psql #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432} --dbname=#{config[Rails.env]["database"]}#{user_attribute} < #{sql_path}")
       else
         raise "Task not supported by '#{config[Rails.env]['adapter']}'"
       end

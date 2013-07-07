@@ -18,11 +18,6 @@ module Bootstrap
         end
         result
       end
-
-      def run_rake(task)
-        Rake::Task[task].reenable
-        Rake::Task[task].invoke
-      end
     end
   end
 end

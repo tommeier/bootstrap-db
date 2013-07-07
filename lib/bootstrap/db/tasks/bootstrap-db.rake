@@ -46,8 +46,8 @@ namespace :bootstrap do
         display_and_execute("mysqldump #{default_sql_attrs} -h #{config[Rails.env]["host"]} -u #{config[Rails.env]["username"]}#{password_attrs} #{config[Rails.env]["database"]} > #{sql_path}")
 
       when 'postgresql'
-        #pg_dumpall --help
-        default_sql_attrs = "-i --clean --inserts --column-inserts --no-owner --no-privileges"
+        #pg_dump --help
+        default_sql_attrs = "--clean --format=c"
 
         if ignore_tables.present?
           ignore_tables.each do |table_name|
@@ -63,7 +63,7 @@ namespace :bootstrap do
 
         user_attribute = " --username=#{config[Rails.env]["username"]}" if config[Rails.env['username']]
 
-        display_and_execute("pg_dumpall #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432}#{user_attribute} --file=#{sql_path} --database=#{config[Rails.env]["database"]}")
+        display_and_execute("pg_dump #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432}#{user_attribute} --file=#{sql_path} #{config[Rails.env]["database"]}")
       else
         raise "Error : Task not supported by '#{config[Rails.env]['adapter']}'"
       end
@@ -86,9 +86,9 @@ namespace :bootstrap do
         password_attrs = " -p#{config[Rails.env]["password"]}" if config[Rails.env]["password"]
         display_and_execute("mysql -f -h #{config[Rails.env]["host"]} -u #{config[Rails.env]["username"]}#{password_attrs.to_s} #{config[Rails.env]["database"]} < #{sql_filename}")
       when 'postgresql'
-        default_sql_attrs = "--single-transaction"
+        default_sql_attrs = "--exit-on-error --clean --single-transaction --format=c"
         user_attribute    = " --username=#{config[Rails.env]["username"]}" if config[Rails.env]['username']
-        display_and_execute("psql #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432} --dbname=#{config[Rails.env]["database"]}#{user_attribute} < #{sql_path}")
+        display_and_execute("pg_restore #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432} --dbname=#{config[Rails.env]["database"]}#{user_attribute} #{sql_path}")
       else
         raise "Task not supported by '#{config[Rails.env]['adapter']}'"
       end

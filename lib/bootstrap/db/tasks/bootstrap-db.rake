@@ -7,31 +7,24 @@ namespace :bootstrap do
     desc "Dump the current database to a SQL file"
     task :dump => :environment do
       config = Bootstrap::Db::Config.load!
+      raise "Unable to find dump at location - #{config.dump_path}" unless File.exists?(config.dump_path)
 
-      sql_root        = File.join(Rails.root, 'db', 'bootstrap')
+      settings        = config.settings[Rails.env]
       ignore_tables   = ENV['IGNORE_TABLES'].split(',')     if ENV['IGNORE_TABLES']
       passed_params   = ENV['ADDITIONAL_PARAMS'].split(',') if ENV['ADDITIONAL_PARAMS']
 
-      sql_filename, sql_path = if ENV['FILE']
-        [ File.basename(ENV['FILE']), ENV['FILE'] ]
-      else
-        passed_filename = ENV['FILE_NAME'] || 'bootstrap_data.sql'
-
-        [ passed_filename, File.join(sql_root, passed_filename) ]
-      end
-
       #Create directories if they don't exist
-      Dir.mkdir sql_root unless File.exists?(sql_root)
+      Dir.mkdir config.dump_dir unless File.exists?(config.dump_dir)
 
-      log "Generating SQL Dump of Database - #{sql_path}"
+      log "Generating dump of database to #{config.dump_name}"
 
-      case config[Rails.env]["adapter"]
-      when 'mysql'
+      case config.adapter
+      when :mysql
         #mysqldump --help
         default_sql_attrs = "-q --add-drop-table --add-locks --extended-insert --lock-tables --single-transaction"
         if ignore_tables
           ignore_tables.each do |table_name|
-            default_sql_attrs += " --ignore-table=#{config[Rails.env]["database"]}.#{table_name.strip}"
+            default_sql_attrs += " --ignore-table=#{settings["database"]}.#{table_name.strip}"
           end
         end
 
@@ -41,17 +34,17 @@ namespace :bootstrap do
           end
         end
 
-        password_attrs = " -p#{config[Rails.env]["password"]}" if config[Rails.env]["password"]
+        password_attrs = " -p#{settings["password"]}" if settings["password"]
         #--all-tablespaces
-        display_and_execute("mysqldump #{default_sql_attrs} -h #{config[Rails.env]["host"]} -u #{config[Rails.env]["username"]}#{password_attrs} #{config[Rails.env]["database"]} > #{sql_path}")
+        display_and_execute("mysqldump #{default_sql_attrs} -h #{settings["host"]} -u #{settings["username"]}#{password_attrs} #{settings["database"]} > #{path}")
 
-      when 'postgresql'
+      when :postgresql
         #pg_dump --help
         default_sql_attrs = "--clean --format=c"
 
         if ignore_tables.present?
           ignore_tables.each do |table_name|
-            default_sql_attrs += " --exclude-table=#{config[Rails.env]["database"]}.#{table_name.strip}"
+            default_sql_attrs += " --exclude-table=#{settings["database"]}.#{table_name.strip}"
           end
         end
 
@@ -61,38 +54,36 @@ namespace :bootstrap do
           end
         end
 
-        user_attribute = " --username=#{config[Rails.env]["username"]}" if config[Rails.env['username']]
+        user_attribute = " --username=#{settings["username"]}" if settings['username']
 
-        display_and_execute("pg_dump #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432}#{user_attribute} --file=#{sql_path} #{config[Rails.env]["database"]}")
+        display_and_execute("pg_dump #{default_sql_attrs} --host=#{settings["host"]} --port=#{settings["port"] || 5432}#{user_attribute} --file=#{path} #{settings["database"]}")
       else
-        raise "Error : Task not supported by '#{config[Rails.env]['adapter']}'"
+        raise "Error : Task not supported by '#{settings['adapter']}'"
       end
-      log "SQL Dump completed --> #{sql_path}"
+      log "Dump completed --> #{config.dump_path}"
     end
 
     desc "Load a SQL dump into the current environment"
     task :load => :environment do
-      config = Bootstrap::Db::Config.load!
+      config    = Bootstrap::Db::Config.load!
+      settings  = config.settings[Rails.env]
+      raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
 
-      log "No dump location passed. Loading defaults..." unless ENV['FILE']
+      log "Loading dump: #{config.dump_name}"
 
-      sql_path = ENV['FILE'] || File.join(Rails.root, 'db', 'bootstrap','bootstrap_data.sql')
-      raise "Unable to find dump at location - #{sql_path}" unless File.exists?(sql_path)
-
-      log "Loading dump: #{File.basename(sql_path)}"
-
-      case config[Rails.env]["adapter"]
-      when 'mysql'
-        password_attrs = " -p#{config[Rails.env]["password"]}" if config[Rails.env]["password"]
-        display_and_execute("mysql -f -h #{config[Rails.env]["host"]} -u #{config[Rails.env]["username"]}#{password_attrs.to_s} #{config[Rails.env]["database"]} < #{sql_filename}")
-      when 'postgresql'
+      case config.adapter
+      when :mysql
+        password_attrs = " -p#{settings["password"]}" if settings["password"]
+        display_and_execute("mysql -f -h #{settings["host"]} -u #{settings["username"]}#{password_attrs.to_s} #{settings["database"]} < #{config.dump_path}")
+      when :postgresql
         default_sql_attrs = "--exit-on-error --clean --single-transaction --format=c"
-        user_attribute    = " --username=#{config[Rails.env]["username"]}" if config[Rails.env]['username']
-        display_and_execute("pg_restore #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432} --dbname=#{config[Rails.env]["database"]}#{user_attribute} #{sql_path}")
+        user_attribute    = " --username=#{settings["username"]}" if config[Rails.env]['username']
+        display_and_execute("pg_restore #{default_sql_attrs} --host=#{settings["host"]} --port=#{settings["port"] || 5432} --dbname=#{settings["database"]}#{user_attribute} #{config.dump_path}")
       else
-        raise "Task not supported by '#{config[Rails.env]['adapter']}'"
+        raise "Task not supported by '#{settings['adapter']}'"
       end
-      puts "Database load completed..."
+
+      log "Database load completed..."
     end
   end
 end

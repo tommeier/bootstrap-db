@@ -39,7 +39,7 @@ namespace :bootstrap do
 
       when :postgresql
         #pg_dump --help
-        default_sql_attrs = "--clean --format=c"
+        default_sql_attrs = "--clean --create --format=c"
 
         if ignore_tables.present?
           ignore_tables.each do |table_name|

@@ -8,7 +8,7 @@ Currently accepting MySQL & Postgres databases and specifically gear to Rails ap
 ## Add this line to your application's Gemfile:
 
 ```
-    gem 'bootstrap-db'
+  gem 'bootstrap-db'
 ```
 
 ## Commands (with example usage)
@@ -44,6 +44,7 @@ Load, and overwrite, current database environment with a passed file name.
 
 Pass in any additional parameters that your database accepts:
   * eg. mysqldump *--help* / pg_dump *--help*
+
 ```
   rake bootstrap:db:dump ADDITIONAL_PARAMS='-d,-t'
   rake bootstrap:db:load ADDITIONAL_PARAMS='-d,-t'

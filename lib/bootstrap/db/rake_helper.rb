@@ -13,10 +13,8 @@ module Bootstrap
 
       def execute_command(command)
         output = `#{command} 2>&1`
-        unless $?.success?
-          raise "Error : #{output}"
-        end
-        result
+        raise "Error : #{output}" unless $?.success?
+        output
       end
     end
   end

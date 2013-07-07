@@ -43,7 +43,7 @@ namespace :bootstrap do
 
         password_attrs = " -p#{config[Rails.env]["password"]}" if config[Rails.env]["password"]
         #--all-tablespaces
-        display_and_execute("mysqldump #{default_sql_attrs} -h #{config[Rails.env]["host"]} -u #{config[Rails.env]["username"]}#{password_attrs.to_s} #{config[Rails.env]["database"]} > #{sql_path}")
+        display_and_execute("mysqldump #{default_sql_attrs} -h #{config[Rails.env]["host"]} -u #{config[Rails.env]["username"]}#{password_attrs} #{config[Rails.env]["database"]} > #{sql_path}")
 
       when 'postgresql'
         #pg_dumpall --help
@@ -61,7 +61,9 @@ namespace :bootstrap do
           end
         end
 
-        display_and_execute("pg_dumpall #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432} --username=#{config[Rails.env]["username"]} --file=#{sql_path} --database=#{config[Rails.env]["database"]}")
+        user_attribute = " --username=#{config[Rails.env]["username"]}" if config[Rails.env['username']]
+
+        display_and_execute("pg_dumpall #{default_sql_attrs} --host=#{config[Rails.env]["host"]} --port=#{config[Rails.env]["port"] || 5432}#{user_attribute} --file=#{sql_path} --database=#{config[Rails.env]["database"]}")
       else
         raise "Error : Task not supported by '#{config[Rails.env]['adapter']}'"
       end

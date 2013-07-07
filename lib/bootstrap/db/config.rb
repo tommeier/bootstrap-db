@@ -3,7 +3,7 @@ module Bootstrap
     class Config
       DB_CONFIG_PATH = 'config/database.yml'
 
-      attr_accessor :settings, :adapter, :dump_name, :dump_path
+      attr_accessor :settings, :adapter, :dump_name, :dump_path, :dump_dir
 
       def initialize(settings)
         self.settings = settings
@@ -12,10 +12,6 @@ module Bootstrap
         self.dump_path = ENV['FILE'] || File.join(default_dump_path, ENV['FILE_NAME'] || default_dump_name)
         self.dump_name = File.basename(self.full_path)
         self.dump_dir  = File.dirname(self.full_path)
-      end
-
-      def self.default_save_path(filename = 'bootstrap_data.sql')
-        File.join(Rails.root, 'db', 'bootstrap', filename)
       end
 
       def self.load!(configuration_path = File.join(Rails.root, DB_CONFIG_PATH))
@@ -44,7 +40,7 @@ module Bootstrap
           @default_dump_name ||= case config.adapter
           when :postgresql
             'bootstrap.dump'
-          when else
+          else
             'bootstrap_data.sql' #MySQL
           end
         end

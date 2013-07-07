@@ -75,7 +75,7 @@ namespace :bootstrap do
         password_attrs = " -p#{settings["password"]}" if settings["password"]
         display_and_execute("mysql -f -h #{settings["host"]} -u #{settings["username"]}#{password_attrs.to_s} #{settings["database"]} < #{config.dump_path}")
       when :postgresql
-        default_sql_attrs = "--exit-on-error --clean --single-transaction --format=c"
+        default_sql_attrs = "--clean --single-transaction --format=c"
         user_attribute    = " --username=#{settings["username"]}" if settings['username']
         display_and_execute("pg_restore #{default_sql_attrs} --host=#{settings["host"]} --port=#{settings["port"] || 5432} --dbname=#{settings["database"]}#{user_attribute} #{config.dump_path}")
       else

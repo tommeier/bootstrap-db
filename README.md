@@ -65,7 +65,6 @@ Pass 'VERBOSE=true' if you'd like to see more information. For example:
 
 
 ## TODO (if we end up using this more)
-
   * This has been quickly rebuilt from a ridiculously old project of mine (http://github.com/tommeier/bootstrap). This should be refactored into proper objects and expose classes as well as rake tasks. Fully tested.
   * Proper mapping of parameter for dumping (eg. --username) to database config
   * List required attributes for each database (like `host` and raise on missing)

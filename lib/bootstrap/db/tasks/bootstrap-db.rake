@@ -6,7 +6,7 @@ namespace :bootstrap do
 
     desc "Dump the current database to a SQL file"
     task :dump => :environment do
-      config = Bootstrap::Db.load_config!
+      config = Bootstrap::Db::Config.load!
 
       sql_root        = File.join(Rails.root, 'db', 'bootstrap')
       ignore_tables   = ENV['IGNORE_TABLES'].split(',')     if ENV['IGNORE_TABLES']
@@ -69,8 +69,8 @@ namespace :bootstrap do
     end
 
     desc "Load a SQL dump into the current environment"
-    task :database_load => :environment do
-      config = Bootstrap::Db.load_config!
+    task :load => :environment do
+      config = Bootstrap::Db::Config.load!
 
       log "No dump location passed. Loading defaults..." unless ENV['FILE']
 

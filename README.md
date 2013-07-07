@@ -63,6 +63,11 @@ Pass 'VERBOSE=true' if you'd like to see more information. For example:
  * database.yml has a 'host' value set for environments
  * mysql/postgresql
 
+
+## TODO
+
+  * This has been quickly rebuilt from a ridiculously old project of mine (http://github.com/tommeier/bootstrap). This should be refactored into proper objects and expose classes as well as rake tasks. Fully tested.
+
 ## Contributing
 
 1. Fork it

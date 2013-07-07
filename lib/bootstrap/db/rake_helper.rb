@@ -12,7 +12,11 @@ module Bootstrap
       end
 
       def execute_command(command)
-        `#{command}`
+        output = `#{command} 2>&1`
+        unless $?.success?
+          raise "Error : #{output}"
+        end
+        result
       end
 
       def run_rake(task)

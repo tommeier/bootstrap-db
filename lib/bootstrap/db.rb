@@ -1,18 +1,24 @@
 require 'bootstrap/db/version'
 
 module Bootstrap
-  module Db
+  class Db
+    DB_CONFIG_PATH = 'config/database.yml'
 
-    def load_config
-      file_path = File.join(Rails.root, 'config/database.yml')
-      raise "Error - Please ensure your config/database.yml exists" unless File.exists?(file_path)
-      YAML::load(ERB.new(IO.read(file_path)).result)
+    def self.load_config!
+      file_path   = File.join(Rails.root, DB_CONFIG_PATH)
+
+      unless File.exists?(file_path)
+        raise "Error - Please ensure your '#{DB_CONFIG_PATH}' exists"
+      end
+
+      config = YAML::load(ERB.new(IO.read(file_path)).result)
+
+      unless config[Rails.env]["host"]
+        raise "Please ensure your '#{DB_CONFIG_PATH}' file has a host for the database. eg. host = localhost"
+      end
+
+      config
     end
-
-    def raise_common_errors(config)
-       raise "Please ensure your config/database.yml file has a host for the database. eg. host = localhost"  if config[RAILS_ENV]["host"].blank?
-    end
-
   end
 end
 

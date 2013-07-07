@@ -3,11 +3,11 @@ module Bootstrap
     module RakeHelper
 
       def log(output)
-        STDERR.puts output
+        STDERR.puts "[bootstrap-db] #{output}"
       end
 
-      def display_and_execute(command, display)
-        STDERR.puts command if display
+      def display_and_execute(command)
+        log(command) if ENV['VERBOSE'] == 'true'
         execute_command(command)
       end
 

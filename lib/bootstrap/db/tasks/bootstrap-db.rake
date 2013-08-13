@@ -63,7 +63,7 @@ namespace :bootstrap do
     end
 
     desc "Load a SQL dump into the current environment"
-    task :load => :environment do
+    task :load => [:environment] do
       config    = Bootstrap::Db::Config.load!
       settings  = config.settings[Rails.env]
       raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
@@ -83,6 +83,94 @@ namespace :bootstrap do
       end
 
       log "Database load completed..."
+    end
+
+    desc "Load a SQL dump and rebase the time to this point in time"
+    task :load_and_rebase => [:environment, :load] do
+      config    = Bootstrap::Db::Config.load!
+      settings  = config.settings[Rails.env].symbolize_keys
+      raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
+
+      command_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
+      #all_fields = File.expand_path('../../sql/select_date_time_fields.sql', __FILE__)
+      generated_time = File.mtime(config.dump_path)
+
+      log "Rebasing database time to: '#{generated_time}'"
+
+      # Table name, and field name
+      # SELECT MIN(field_name) FROM table_name
+      # (to calculate at which is the overall generated/seeded point of db)
+      case config.adapter
+      when :mysql
+        raise "Not supported yet. Sorry"
+      when :postgresql
+        # Using pg adapter
+        #%w[host port options tty dbname user password]
+        #conn = PG
+        # require 'pg'
+
+        # connection = {port: settings[:port] || 5432}
+        # puts settings.inspect
+        # connection.merge!(user: settings[:username])    if settings[:username]
+        # connection.merge!(host: settings[:host])        if settings[:host]
+        # connection.merge!(dbname: settings[:database])  if settings[:database]
+        # puts connection.inspect
+        # # Output a table of current connections to the DB
+        # conn = PG.connect( connection )
+
+        # all_time_fields_sql = <<-SQL
+        # SELECT table_name, column_name, data_type
+        # FROM information_schema.columns
+        # WHERE
+        # table_schema = 'public'
+        # AND data_type IN
+        # ('timestamp without time zone',
+        # 'timestamp with time zone',
+        # 'date')
+        # ORDER BY table_name, data_type, column_name DESC
+        # SQL
+
+        # table_set = {}
+        # # Group tables by type and fields
+        # conn.exec( all_time_fields_sql ) do |result|
+        #   #result.symbolize_keys!
+        #   #tables = result.group_by(&:table_name)
+        #   #puts tables.inspect
+        #   result.each do |row|
+        #     table_name = row['table_name'].to_sym
+        #     table_set[table_name] ||= {}
+        #     type = row['data_type'] == 'date' ? :date : :time
+
+        #     table_set[table_name.to_sym][type] ||= []
+        #     table_set[table_name.to_sym][type] << row['column_name']
+        #   end
+        # end
+
+        #puts table_set.inspect
+        # End of ruby way
+
+        # TODO: Load/create the functions
+        #
+
+        user_attribute    = " --username=#{settings[:username]}" if settings[:username]
+        host_attribute    = " --host=#{settings[:host]}"         if settings[:host]
+        db_attribute      = " --dbname=#{settings[:database]}"   if settings[:database]
+
+        display_and_execute("psql --port=#{settings[:port] || 5432} #{db_attribute}#{host_attribute}#{user_attribute} --file='#{command_path}'")
+        #result = display_and_execute("psql --port=#{settings["port"] || 5432} #{db_attribute}#{host_attribute}#{user_attribute} --file='#{all_fields}'")
+   #      puts result.inspect
+   #      #table_name, column_name, data_type
+   #      puts "---"
+   #      result.each do |row|
+   #        puts " %s | %s | %s" % row.values_at( 'table_name', 'column_name', 'data_type')
+   #        #puts " %7d | %-16s | %s " %
+   # #26:         row.values_at('table_name', 'column_name', 'data_type')
+   #      end
+      else
+        raise "Task not supported by '#{settings['adapter']}'"
+      end
+
+      log "Database rebase completed..."
     end
   end
 end

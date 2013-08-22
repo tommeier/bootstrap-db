@@ -1,25 +1,25 @@
--- Original generation time : 2013-07-24 12:26:50.598673
--- 2013-07-24 12:27:08.592838
--- 2013-07-24 12:27:14.327218
+-- Original generation time : 2013-07-24 00:22:28.856354
+-- 2013-07-24 00:22:28.856354
 -- Setup functions
 
 -- Rebase time values to a fixed point
 CREATE OR REPLACE FUNCTION rebase_time(
     fixed_point timestamp without time zone,
+    new_point timestamp without time zone,
     original_time timestamp without time zone)
   RETURNS timestamp without time zone AS
 $$
 DECLARE
-  result timestamp without time zone := localtimestamp;
+  result timestamp without time zone := new_point;
 BEGIN
   IF (original_time = fixed_point) THEN
-    result := localtimestamp;
+    result := new_point;
   ELSIF (original_time < fixed_point) THEN
     -- Original time was set in the past
-    result :=  (localtimestamp - (fixed_point - original_time));
+    result :=  (new_point - (fixed_point - original_time));
   ELSIF (original_time > fixed_point) THEN
     -- Original time was set in the future
-    result :=  (localtimestamp + (original_time - fixed_point));
+    result :=  (new_point + (original_time - fixed_point));
   END IF;
   --RAISE NOTICE 'Original: %, New: %', original_time, result;
   RETURN result;
@@ -28,20 +28,23 @@ $$
 LANGUAGE 'plpgsql' STABLE;
 
 --Rebase date values to a fixed point
-CREATE OR REPLACE FUNCTION rebase_date(fixed_point date, original date)
+CREATE OR REPLACE FUNCTION rebase_date(
+    fixed_point date,
+    new_point date,
+    original date)
   RETURNS date AS
 $$
 DECLARE
-  result date := current_date;
+  result date := new_point;
 BEGIN
 IF (original = fixed_point) THEN
-  result := current_date;
+  result := new_point;
 ELSIF (original < fixed_point) THEN
   -- Original was set in the past
-  result :=  (current_date - (fixed_point - original));
+  result :=  (new_point - (fixed_point - original));
 ELSE
   -- Original was set in the future
-  result :=  (current_date + (original - fixed_point));
+  result :=  (new_point + (original - fixed_point));
 END IF;
 RETURN result;
 END;
@@ -50,7 +53,7 @@ LANGUAGE 'plpgsql' STABLE;
 
 --Rebase all date/timestamp values in db to a fixed point
 --Returns the number of rows affected
-CREATE OR REPLACE FUNCTION rebase_db_time(fixed_point timestamp without time zone)
+CREATE OR REPLACE FUNCTION rebase_db_time(fixed_point timestamp without time zone, new_point timestamp without time zone)
   RETURNS integer AS
 $$
 DECLARE
@@ -77,14 +80,17 @@ BEGIN
       function_name := 'rebase_time';
     END IF;
 
-    update_command := format('UPDATE %s SET %I = %s(%L::%s, %s.%s);',
+    update_command := format('UPDATE %s SET %I = %s(%L::%s, %L::%s, %s.%s::%s);',
         column_data.table_name,
         column_data.column_name,
         function_name,
         fixed_point,
         column_data.data_type,
+        new_point,
+        column_data.data_type,
         column_data.table_name,
-        column_data.column_name);
+        column_data.column_name,
+        column_data.data_type);
 
     --RAISE EXCEPTION '%', update_command;
     EXECUTE update_command;
@@ -98,5 +104,7 @@ END;
 $$
 LANGUAGE 'plpgsql' VOLATILE;
 
-SELECT rebase_db_time('2013-07-24 12:26:50.598673'::timestamp without time zone);
+---2013-08-13 07:14:39
+--SELECT rebase_db_time('2013-07-24 12:26:50.598673'::timestamp without time zone);
+--SELECT rebase_db_time('2013-07-24 12:26:50.598673'::timestamp, '2013-08-13 07:14:39.000000'::timestamp);
 --SELECT rebase_db_time('2013-07-14'::date);

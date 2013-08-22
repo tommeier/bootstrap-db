@@ -5,7 +5,7 @@ namespace :bootstrap do
     include Bootstrap::Db::RakeHelper
 
     desc "Dump the current database to a SQL file"
-    task :dump => :environment do
+    task :dump => :load_config do
       config = Bootstrap::Db::Config.load!
 
       settings        = config.settings[Rails.env]
@@ -63,7 +63,7 @@ namespace :bootstrap do
     end
 
     desc "Load a SQL dump into the current environment"
-    task :load => [:environment] do
+    task :load => [:load_config] do
       config    = Bootstrap::Db::Config.load!
       settings  = config.settings[Rails.env]
       raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
@@ -86,7 +86,7 @@ namespace :bootstrap do
     end
 
     desc "Load a SQL dump and rebase the time to this point in time"
-    task :load_and_rebase => [:environment, :load] do
+    task :load_and_rebase => [:load_config, :load] do
       config    = Bootstrap::Db::Config.load!
       settings  = config.settings[Rails.env].symbolize_keys
       raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
@@ -156,7 +156,25 @@ namespace :bootstrap do
         host_attribute    = " --host=#{settings[:host]}"         if settings[:host]
         db_attribute      = " --dbname=#{settings[:database]}"   if settings[:database]
 
-        display_and_execute("psql --port=#{settings[:port] || 5432} #{db_attribute}#{host_attribute}#{user_attribute} --file='#{command_path}'")
+        psql_command = "psql --port=#{settings[:port] || 5432} #{db_attribute}#{host_attribute}#{user_attribute}"
+
+        # Load functions
+        display_and_execute("#{psql_command} --file='#{command_path}'")
+        # Get start point
+        #cmd = "SELECT MIN(created_at) FROM CUSTOMERS"
+        #result = display_and_execute("#{psql_command} --command='#{cmd}'")
+        start_point = "2013-07-24 00:22:28.856354"
+
+        new_point = Time.zone.now.to_formatted_s(:db)
+        # Rebase time
+        cmd = "SELECT rebase_db_time('#{start_point}'::timestamp without time zone, '#{new_point}.000000'::timestamp without time zone);"
+        puts cmd
+        result = display_and_execute("#{psql_command} --command=#{cmd.shellescape}")
+        puts "RESULT : "
+        puts result.inspect
+
+        #{}"SELECT rebase_db_time('2013-07-24 12:26:50.598673'::timestamp, '2013-08-13 07:14:39.000000'::timestamp);"
+
         #result = display_and_execute("psql --port=#{settings["port"] || 5432} #{db_attribute}#{host_attribute}#{user_attribute} --file='#{all_fields}'")
    #      puts result.inspect
    #      #table_name, column_name, data_type

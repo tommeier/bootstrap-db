@@ -4,8 +4,11 @@ namespace :bootstrap do
   namespace :db do
     include Bootstrap::Db::RakeHelper
 
+    desc "Recreate bootstrap (drop, create + seed)"
+    task :recreate => ['db:drop', 'db:setup', :dump]
+
     desc "Dump the current database to a SQL file"
-    task :dump => :load_config do
+    task :dump => 'db:load_config' do
       config = Bootstrap::Db::Config.load!
 
       settings        = config.settings[Rails.env]
@@ -63,7 +66,7 @@ namespace :bootstrap do
     end
 
     desc "Load a SQL dump into the current environment"
-    task :load => [:load_config] do
+    task :load => ['db:load_config'] do
       config    = Bootstrap::Db::Config.load!
       settings  = config.settings[Rails.env]
       raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
@@ -75,6 +78,8 @@ namespace :bootstrap do
         password_attrs = " -p#{settings["password"]}" if settings["password"]
         display_and_execute("mysql -f -h #{settings["host"]} -u #{settings["username"]}#{password_attrs.to_s} #{settings["database"]} < #{config.dump_path}")
       when :postgresql
+        #--clean --create --single-transaction
+        # cannot use --create and --single-transaction together
         default_sql_attrs = "--clean --single-transaction --format=c"
         user_attribute    = " --username=#{settings["username"]}" if settings['username']
         display_and_execute("pg_restore #{default_sql_attrs} --host=#{settings["host"]} --port=#{settings["port"] || 5432} --dbname=#{settings["database"]}#{user_attribute} #{config.dump_path}")
@@ -86,7 +91,7 @@ namespace :bootstrap do
     end
 
     desc "Load a SQL dump and rebase the time to this point in time"
-    task :load_and_rebase => [:load_config, :load] do
+    task :load_and_rebase => ['db:load_config', 'db:structure:load', :load] do
       config    = Bootstrap::Db::Config.load!
       settings  = config.settings[Rails.env].symbolize_keys
       raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
@@ -163,11 +168,11 @@ namespace :bootstrap do
         # Get start point
         #cmd = "SELECT MIN(created_at) FROM CUSTOMERS"
         #result = display_and_execute("#{psql_command} --command='#{cmd}'")
-        start_point = "2013-07-24 00:22:28.856354"
+        start_point = "2013-08-03 22:30:27.000000"
 
-        new_point = Time.zone.now.to_formatted_s(:db)
+        #new_point = Time.zone.now.to_formatted_s(:db)
         # Rebase time
-        cmd = "SELECT rebase_db_time('#{start_point}'::timestamp without time zone, '#{new_point}.000000'::timestamp without time zone);"
+        cmd = "SELECT rebase_db_time('#{start_point}'::timestamp without time zone, localtimestamp::timestamp without time zone);"
         puts cmd
         result = display_and_execute("#{psql_command} --command=#{cmd.shellescape}")
         puts "RESULT : "

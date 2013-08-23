@@ -113,17 +113,20 @@ namespace :bootstrap do
       when :postgresql
         # Using pg adapter
         #%w[host port options tty dbname user password]
-        #conn = PG
-        # require 'pg'
+         # require 'pg'
 
-        # connection = {port: settings[:port] || 5432}
-        # puts settings.inspect
-        # connection.merge!(user: settings[:username])    if settings[:username]
-        # connection.merge!(host: settings[:host])        if settings[:host]
-        # connection.merge!(dbname: settings[:database])  if settings[:database]
-        # puts connection.inspect
-        # # Output a table of current connections to the DB
-        # conn = PG.connect( connection )
+         # connection = {port: settings[:port] || 5432}
+         # connection.merge!(user: settings[:username])    #if settings[:username]
+         # connection.merge!(password: settings[:password]) #if settings[:password]
+         # connection.merge!(host: settings[:host])        #if settings[:host]
+         # connection.merge!(dbname: settings[:database])  #if settings[:database]
+         # puts connection.inspect
+         # # Output a table of current connections to the DB
+         # connection_string = PG::Connection.parse_connect_args(connection)
+         # puts "Connection string: "
+         # puts connection_string.inspect
+#exit 1
+         #conn = PG.connect( connection )
 
         # all_time_fields_sql = <<-SQL
         # SELECT table_name, column_name, data_type
@@ -164,27 +167,29 @@ namespace :bootstrap do
         db_attribute      = " --dbname=#{settings[:database]}"   if settings[:database]
 
         psql_command = "psql --port=#{settings[:port] || 5432} #{db_attribute}#{host_attribute}#{user_attribute}"
-
+        #psql_command = "psql #{connection_string}"
         # Load functions
         display_and_execute("#{psql_command} --file='#{command_path}'")
         # Get start point
-        #cmd = "SELECT MIN(created_at) FROM CUSTOMERS"
-        #result = display_and_execute("#{psql_command} --command='#{cmd}'")
+        cmd = "SELECT MIN(created_at) FROM CUSTOMERS"
+        result = display_and_execute("#{psql_command} --command='#{cmd}'")
+        puts result.inspect
+        #TODO: Make this better!
+        start_point = result.scan(/(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})/).flatten.first
+        #2013-08-01 22:44:33.784762
+        #exit 1
 
-        STDERR.puts ENV['ZONEBIE_TZ'].inspect
-        STDERR.puts ENV['TZ'].inspect
-        STDERR.puts "I HAS ZONE STUFF"
         if time_zone = (ENV['ZONEBIE_TZ'] || ENV['TZ'])
           STDERR.puts "CUSTOM ZONE: #{time_zone}"
           #Handle custom timezones
           Time.zone = time_zone
           new_point = Time.zone.now.to_formatted_s(:db)
-          start_point = "2013-08-01 22:44:33.000000"
+          #start_point = "2013-08-01 22:44:33.000000"
           #start_point = Time.zone.parse(start_point).to_formatted_s(:db)
         else
           # Default to 'now' in the local timestamp
           new_point = "localtimestamp"
-          start_point = "2013-08-01 22:44:33.000000"
+          #start_point = "2013-08-01 22:44:33.000000"
         end
 
         STDERR.puts "NEW_POINT : #{new_point}"

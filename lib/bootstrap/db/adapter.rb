@@ -34,7 +34,17 @@ module Bootstrap
         end
       end
 
-
+      def current_db_time
+        if Time.respond_to?(:zone)
+          #Handle custom timezones
+          if time_zone = (ENV['TZ'] || ENV['ZONEBIE_TZ'])
+            Time.zone ||= time_zone
+          end
+          Time.zone.now
+        else
+          Time.now
+        end.to_formatted_s(:db)
+      end
     end
   end
 end

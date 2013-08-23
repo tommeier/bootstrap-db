@@ -1,4 +1,5 @@
--- Setup functions
+-- Setup functions for being able to rebase time + date values
+-- from a point the db data was generated to a new point.
 
 -- Rebase time values to a fixed point
 CREATE OR REPLACE FUNCTION rebase_time(

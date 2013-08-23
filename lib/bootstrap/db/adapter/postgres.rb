@@ -1,3 +1,5 @@
+require 'yaml'
+
 module Bootstrap
   module Db
     class Postgres < Adapter
@@ -42,7 +44,11 @@ module Bootstrap
 
         dump_command << config.settings['database']
 
-        display_and_execute(dump_command.join(' '))
+        result = display_and_execute(dump_command.join(' '))
+
+        save_generated_time!
+
+        result
       end
 
       def load!
@@ -59,32 +65,16 @@ module Bootstrap
       end
 
       def rebase!
-        load_rebase_functions
+        generated_time = load_generated_time!
 
-        # REDO THIS
-        cmd = "SELECT MIN(created_at) FROM CUSTOMERS"
-        result = display_and_execute("#{psql_execute} --command='#{cmd}'")
+        load_rebase_functions!
+
+        start_point = generated_time
+        rebase_to   = current_db_time
+
+        rebase_cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{rebase_to}'::timestamp);"
+        result = display_and_execute("#{psql_execute} --command=#{rebase_cmd.shellescape}")
         log(result.inspect)
-        #TODO: Make this better!
-        start_point = result.scan(/(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})/).flatten.first
-
-
-        if time_zone = (ENV['TZ'] || ENV['ZONEBIE_TZ'])
-          STDERR.puts "CUSTOM ZONE: #{time_zone}"
-          #Handle custom timezones
-          Time.zone = time_zone
-          new_point = Time.zone.now.to_formatted_s(:db)
-        else
-          # Default to 'now' in the local timestamp
-          new_point = "localtimestamp"
-        end
-
-        cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{new_point}'::timestamp);"
-        puts cmd
-        result = display_and_execute("#{psql_execute} --command=#{cmd.shellescape}")
-        puts "RESULT : "
-        puts result.inspect
-
       end
 
       private
@@ -99,13 +89,60 @@ module Bootstrap
         end
       end
 
-      def load_rebase_functions
+      def load_rebase_functions!
         function_sql_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
         display_and_execute("#{psql_execute} --file='#{function_sql_path}'")
       end
 
       def default_file_name
         'bootstrap_data.dump' #Custom format 'c'
+      end
+
+      def load_generated_time!
+        settings = current_settings
+
+        generated_times = settings[:generated_on]
+        generated_time = generated_times && generated_times[file_path]
+
+        unless generated_time
+          error_message =<<-ERR
+          Error - Cannot find generated time. Please recreate dump.
+          A generated time is required to know how to rebase time correctly.
+          Looking in: #{settings_path}
+          ERR
+          raise MissingSettingsFileError.new(error_message)
+        end
+
+        generated_time
+      end
+
+      # Save and track generated time of bootstrap
+      def save_generated_time!
+        settings = current_settings
+        settings[:generated_on] ||= {}
+
+        #Clear any bootstraps that may have been removed
+        settings[:generated_on].each do |file, generated_time|
+          settings[:generated_on].delete(file) unless File.exists?(file)
+        end
+
+        #Set current bootstrap generated time
+        settings[:generated_on][file_path] = current_db_time
+        puts settings.inspect
+
+        #Save settings file
+        File.open(settings_path, "w") do |file|
+          file.write settings.to_yaml
+        end
+      end
+
+      def current_settings
+        return {} unless File.exists?(settings_path)
+        YAML::load_file(settings_path) || {}
+      end
+
+      def settings_path
+        @settings_path ||= File.expand_path(File.join(config.bootstrap_dir, '.bootstrap'))
       end
     end
   end

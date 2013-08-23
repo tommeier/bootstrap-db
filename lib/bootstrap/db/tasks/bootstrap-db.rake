@@ -6,7 +6,7 @@ namespace :bootstrap do
     task :recreate => ['db:drop', 'db:setup', :dump]
 
     desc "Dump the current database to a SQL file"
-    task :dump => 'db:load_config' do
+    task :dump => ['db:load_config'] do
       config = Bootstrap::Db::Config.load!
 
       bootstrap = case config.adapter
@@ -18,9 +18,10 @@ namespace :bootstrap do
         raise "Error : Task not supported by '#{config.adapter}'"
       end
 
+      log("Here it is #{Time.zone.now.to_s(:db)}")
       log "Generating dump of database: '#{bootstrap.file_name}'"
       bootstrap.dump!
-      log "Dump completed --> '#{file_path}'"
+      log "Dump completed --> '#{bootstrap.file_path}'"
     end
 
     desc "Load a SQL dump into the current environment"
@@ -33,7 +34,7 @@ namespace :bootstrap do
       when :postgresql
         Bootstrap::Db::Postgres.new(config)
       else
-        raise "Task not supported by '#{settings['adapter']}'"
+        raise "Task not supported by '#{config.adapter}'"
       end
 
       unless File.exists?(bootstrap.file_path)

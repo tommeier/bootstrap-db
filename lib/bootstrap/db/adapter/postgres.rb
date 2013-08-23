@@ -69,17 +69,14 @@ module Bootstrap
         start_point = result.scan(/(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})/).flatten.first
 
 
-        if time_zone = (ENV['ZONEBIE_TZ'] || ENV['TZ'])
+        if time_zone = (ENV['TZ'] || ENV['ZONEBIE_TZ'])
           STDERR.puts "CUSTOM ZONE: #{time_zone}"
           #Handle custom timezones
           Time.zone = time_zone
           new_point = Time.zone.now.to_formatted_s(:db)
-          #start_point = "2013-08-01 22:44:33.000000"
-          #start_point = Time.zone.parse(start_point).to_formatted_s(:db)
         else
           # Default to 'now' in the local timestamp
           new_point = "localtimestamp"
-          #start_point = "2013-08-01 22:44:33.000000"
         end
 
         cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{new_point}'::timestamp);"

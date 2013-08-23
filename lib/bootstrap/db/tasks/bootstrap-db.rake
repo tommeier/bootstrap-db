@@ -1,8 +1,6 @@
-require File.join(File.dirname(__FILE__), '../rake_helper')
-
 namespace :bootstrap do
   namespace :db do
-    include Bootstrap::Db::RakeHelper
+    include Bootstrap::Db::Log
 
     desc "Recreate bootstrap (drop, create + seed)"
     task :recreate => ['db:drop', 'db:setup', :dump]
@@ -11,58 +9,22 @@ namespace :bootstrap do
     task :dump => 'db:load_config' do
       config = Bootstrap::Db::Config.load!
 
-      settings        = config.settings[Rails.env]
-      ignore_tables   = ENV['IGNORE_TABLES'].split(',')     if ENV['IGNORE_TABLES']
-      passed_params   = ENV['ADDITIONAL_PARAMS'].split(',') if ENV['ADDITIONAL_PARAMS']
-
       #Create directories if they don't exist
       Dir.mkdir config.dump_dir unless File.exists?(config.dump_dir)
 
       log "Generating dump of database: '#{config.dump_name}'"
 
-      case config.adapter
+      bootstrap = case config.adapter
       when :mysql
-        #mysqldump --help
-        default_sql_attrs = "-q --add-drop-table --add-locks --extended-insert --lock-tables --single-transaction"
-        if ignore_tables
-          ignore_tables.each do |table_name|
-            default_sql_attrs += " --ignore-table=#{settings["database"]}.#{table_name.strip}"
-          end
-        end
-
-        if passed_params
-          passed_params.each do |param|
-            default_sql_attrs += " #{param}"
-          end
-        end
-
-        password_attrs = " -p#{settings["password"]}" if settings["password"]
-        #--all-tablespaces
-        display_and_execute("mysqldump #{default_sql_attrs} -h #{settings["host"]} -u #{settings["username"]}#{password_attrs} #{settings["database"]} > #{config.dump_path}")
-
+        Bootstrap::Db::Mysql.new(config)
       when :postgresql
-        #pg_dump --help
-        #trial without --clean
-        default_sql_attrs = "--create --format=c"
-
-        if ignore_tables.present?
-          ignore_tables.each do |table_name|
-            default_sql_attrs += " --exclude-table=#{settings["database"]}.#{table_name.strip}"
-          end
-        end
-
-        if passed_params.present?
-          passed_params.each do |param|
-            default_sql_attrs += " #{param}"
-          end
-        end
-
-        user_attribute = " --username=#{settings["username"]}" if settings['username']
-
-        display_and_execute("pg_dump #{default_sql_attrs} --host=#{settings["host"]} --port=#{settings["port"] || 5432}#{user_attribute} --file=#{config.dump_path} #{settings["database"]}")
+        Bootstrap::Db::Postgres.new(config)
       else
-        raise "Error : Task not supported by '#{settings['adapter']}'"
+        raise "Error : Task not supported by '#{config.adapter}'"
       end
+
+      bootstrap.dump!
+
       log "Dump completed --> '#{config.dump_path}'"
     end
 
@@ -113,14 +75,15 @@ namespace :bootstrap do
       when :postgresql
         # Using pg adapter
         #%w[host port options tty dbname user password]
-         # require 'pg'
+         #require 'pg'
 
-         # connection = {port: settings[:port] || 5432}
-         # connection.merge!(user: settings[:username])    #if settings[:username]
-         # connection.merge!(password: settings[:password]) #if settings[:password]
-         # connection.merge!(host: settings[:host])        #if settings[:host]
-         # connection.merge!(dbname: settings[:database])  #if settings[:database]
-         # puts connection.inspect
+         #connection = {port: settings[:port] || 5432}
+         #connection.merge!(user: settings[:username])    #if settings[:username]
+         #connection.merge!(password: settings[:password]) #if settings[:password]
+         #connection.merge!(host: settings[:host])        #if settings[:host]
+         #connection.merge!(dbname: settings[:database])  #if settings[:database]
+         #puts connection.inspect
+
          # # Output a table of current connections to the DB
          # connection_string = PG::Connection.parse_connect_args(connection)
          # puts "Connection string: "
@@ -155,6 +118,17 @@ namespace :bootstrap do
         #     table_set[table_name.to_sym][type] << row['column_name']
         #   end
         # end
+        functions = File.read File.expand_path('../sql/rebase_time.sql', __FILE__)
+        rebase_command = <<-SQL
+        #{functions}
+
+        SQL
+        conn.exec( rebase_command ) do |result|
+          puts "Result : #{result.inspect}"
+          result.each do |row|
+            puts "Row: #{row.inspect}"
+          end
+        end
 
         #puts table_set.inspect
         # End of ruby way

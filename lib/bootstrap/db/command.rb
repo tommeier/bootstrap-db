@@ -1,10 +1,6 @@
 module Bootstrap
   module Db
-    module RakeHelper
-
-      def log(output)
-        STDERR.puts "[bootstrap-db] #{output}"
-      end
+    module Command
 
       def display_and_execute(command)
         log(command) if ENV['VERBOSE'] == 'true'

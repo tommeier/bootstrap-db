@@ -5,9 +5,9 @@ module Bootstrap
 
       attr_accessor :settings, :adapter, :dump_name, :dump_path, :dump_dir
 
-      def initialize(settings)
-        self.settings = settings
-        self.adapter  = settings[Rails.env]["adapter"].to_sym
+      def initialize(loaded_settings)
+        self.settings = loaded_settings[Rails.env]
+        self.adapter  = self.settings["adapter"].to_sym
 
         self.dump_path = ENV['FILE'] || File.join(default_dump_path, ENV['FILE_NAME'] || default_dump_name)
         self.dump_name = File.basename(self.dump_path)

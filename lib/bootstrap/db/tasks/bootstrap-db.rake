@@ -18,9 +18,10 @@ namespace :bootstrap do
         raise "Error : Task not supported by '#{config.adapter}'"
       end
 
-      log("Here it is #{Time.zone.now.to_s(:db)}")
       log "Generating dump of database: '#{bootstrap.file_name}'"
+
       bootstrap.dump!
+
       log "Dump completed --> '#{bootstrap.file_path}'"
     end
 
@@ -42,6 +43,7 @@ namespace :bootstrap do
       end
 
       log "Loading dump: '#{bootstrap.file_name}'"
+
       bootstrap.load!
 
       log "Database load completed..."
@@ -50,7 +52,6 @@ namespace :bootstrap do
     desc "Load a SQL dump and rebase the time to this point in time"
     task :load_and_rebase => ['db:load_config', :load] do
       config    = Bootstrap::Db::Config.load!
-      settings  = config.settings.symbolize_keys
 
       bootstrap = case config.adapter
       when :mysql
@@ -58,14 +59,14 @@ namespace :bootstrap do
       when :postgresql
         Bootstrap::Db::Postgres.new(config)
       else
-        raise "Task not supported by '#{settings['adapter']}'"
+        raise "Task not supported by '#{config.adapter}'"
       end
 
       unless File.exists?(bootstrap.file_path)
         raise "Unable to find dump at location - '#{bootstrap.file_path}'"
       end
 
-      log "Rebasing database time to now..."
+      log "Rebasing database time relative to now..."
 
       bootstrap.rebase!
 

@@ -48,8 +48,25 @@ module Bootstrap
       end
 
 
-      def load!
+        default_sql_attrs =
+        user_attribute    = " --username=#{settings["username"]}" if settings['username']
+        display_and_execute("pg_restore #{default_sql_attrs}
+          --host=#{settings["host"]}
+          --port=#{settings["port"] || 5432}
+          #{user_attribute} #{config.dump_path}")
 
+
+      def load!
+        #pg_restore --help
+        load_command = [
+          "pg_dump",
+          "--single-transaction --format=c",
+          "--dbname='#{config.settings["database"]}'",
+          connection_string,
+          config.dump_path
+        ]
+
+        display_and_execute(load_command.join(' '))
       end
 
       private

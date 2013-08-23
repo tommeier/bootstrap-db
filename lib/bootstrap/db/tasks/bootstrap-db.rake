@@ -31,25 +31,22 @@ namespace :bootstrap do
     desc "Load a SQL dump into the current environment"
     task :load => ['db:load_config'] do
       config    = Bootstrap::Db::Config.load!
-      settings  = config.settings[Rails.env]
-      raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
+
+      unless File.exists?(config.dump_path)
+        raise "Unable to find dump at location - '#{config.dump_path}'"
+      end
 
       log "Loading dump: '#{config.dump_name}'"
 
-      case config.adapter
+      bootstrap = case config.adapter
       when :mysql
-        password_attrs = " -p#{settings["password"]}" if settings["password"]
-        display_and_execute("mysql -f -h #{settings["host"]} -u #{settings["username"]}#{password_attrs.to_s} #{settings["database"]} < #{config.dump_path}")
+        Bootstrap::Db::Mysql.new(config)
       when :postgresql
-        #--clean --create --single-transaction
-        # cannot use --create and --single-transaction together
-        #--clean
-        default_sql_attrs = "--single-transaction --format=c"
-        user_attribute    = " --username=#{settings["username"]}" if settings['username']
-        display_and_execute("pg_restore #{default_sql_attrs} --host=#{settings["host"]} --port=#{settings["port"] || 5432} --dbname=#{settings["database"]}#{user_attribute} #{config.dump_path}")
+        Bootstrap::Db::Postgres.new(config)
       else
         raise "Task not supported by '#{settings['adapter']}'"
       end
+      bootstrap.load!
 
       log "Database load completed..."
     end

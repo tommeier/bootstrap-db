@@ -47,7 +47,15 @@ module Bootstrap
       end
 
       def load!
+        #mysql --help
+        load_command = [
+          "mysql",
+          "-f",
+          connection_string,
+          "#{config.settings["database"]} < #{config.dump_path}"
+        ]
 
+        display_and_execute(load_command.join(' '))
       end
 
       private

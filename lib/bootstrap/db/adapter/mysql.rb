@@ -41,7 +41,7 @@ module Bootstrap
           end
         end
 
-        dump_command << "#{config.settings['database']} > #{config.dump_path}"
+        dump_command << "#{config.settings['database']} > #{file_path}"
 
         display_and_execute(dump_command.join(' '))
       end
@@ -52,13 +52,17 @@ module Bootstrap
           "mysql",
           "-f",
           connection_string,
-          "#{config.settings["database"]} < #{config.dump_path}"
+          "#{config.settings["database"]} < #{file_path}"
         ]
 
         display_and_execute(load_command.join(' '))
       end
 
       private
+
+      def default_file_name
+        'bootstrap_data.sql'
+      end
     end
   end
 end

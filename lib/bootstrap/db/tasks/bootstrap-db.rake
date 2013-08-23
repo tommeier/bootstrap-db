@@ -9,11 +9,6 @@ namespace :bootstrap do
     task :dump => 'db:load_config' do
       config = Bootstrap::Db::Config.load!
 
-      #Create directories if they don't exist
-      Dir.mkdir config.dump_dir unless File.exists?(config.dump_dir)
-
-      log "Generating dump of database: '#{config.dump_name}'"
-
       bootstrap = case config.adapter
       when :mysql
         Bootstrap::Db::Mysql.new(config)
@@ -23,20 +18,14 @@ namespace :bootstrap do
         raise "Error : Task not supported by '#{config.adapter}'"
       end
 
+      log "Generating dump of database: '#{bootstrap.file_name}'"
       bootstrap.dump!
-
-      log "Dump completed --> '#{config.dump_path}'"
+      log "Dump completed --> '#{file_path}'"
     end
 
     desc "Load a SQL dump into the current environment"
     task :load => ['db:load_config'] do
       config    = Bootstrap::Db::Config.load!
-
-      unless File.exists?(config.dump_path)
-        raise "Unable to find dump at location - '#{config.dump_path}'"
-      end
-
-      log "Loading dump: '#{config.dump_name}'"
 
       bootstrap = case config.adapter
       when :mysql
@@ -46,6 +35,12 @@ namespace :bootstrap do
       else
         raise "Task not supported by '#{settings['adapter']}'"
       end
+
+      unless File.exists?(bootstrap.file_path)
+        raise "Unable to find dump at location - '#{bootstrap.file_path}'"
+      end
+
+      log "Loading dump: '#{bootstrap.file_name}'"
       bootstrap.load!
 
       log "Database load completed..."
@@ -55,13 +50,6 @@ namespace :bootstrap do
     task :load_and_rebase => ['db:load_config', :load] do
       config    = Bootstrap::Db::Config.load!
       settings  = config.settings.symbolize_keys
-      raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
-
-      #command_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
-      #all_fields = File.expand_path('../../sql/select_date_time_fields.sql', __FILE__)
-      generated_time = File.mtime(config.dump_path)
-
-      log "Rebasing database time to: '#{generated_time}' / #{File.ctime(config.dump_path)}"
 
       bootstrap = case config.adapter
       when :mysql
@@ -71,6 +59,12 @@ namespace :bootstrap do
       else
         raise "Task not supported by '#{settings['adapter']}'"
       end
+
+      unless File.exists?(bootstrap.file_path)
+        raise "Unable to find dump at location - '#{bootstrap.file_path}'"
+      end
+
+      log "Rebasing database time to now..."
 
       bootstrap.rebase!
 

@@ -24,7 +24,7 @@ module Bootstrap
         dump_command = [
           "pg_dump",
           "--create --format=c",
-          "--file=#{config.dump_path}",
+          "--file=#{file_path}",
           connection_string
         ]
 
@@ -52,7 +52,7 @@ module Bootstrap
           "--single-transaction --format=c",
           "--dbname='#{config.settings["database"]}'",
           connection_string,
-          config.dump_path
+          file_path
         ]
 
         display_and_execute(load_command.join(' '))
@@ -102,6 +102,10 @@ module Bootstrap
       def load_rebase_functions
         function_sql_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
         display_and_execute("#{psql_execute} --file='#{function_sql_path}'")
+      end
+
+      def default_file_name
+        'bootstrap_data.dump' #Custom format 'c'
       end
     end
   end

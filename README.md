@@ -18,7 +18,7 @@ Currently accepting MySQL & Postgres databases and specifically gear to Rails ap
 ```
   rake bootstrap:db:dump                                          #Dump default to db/bootstrap/bootstrap_data.sql
   rake bootstrap:db:dump RAILS_ENV=production                     #Dump specific Rails environment using database.yml
-  rake bootstrap:db:dump FILE=db/bootstrap/live_database.dump     #Dump to specific location
+  rake bootstrap:db:dump BOOTSTRAP_DIR=db/my_bootstraps/          #Dump to specific directory
   rake bootstrap:db:dump FILE_NAME=live_database.dump             #Dump specific file to default bootstrap location
 ```
 

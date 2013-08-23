@@ -3,15 +3,15 @@ module Bootstrap
     class Config
       DB_CONFIG_PATH = 'config/database.yml'
 
-      attr_accessor :settings, :adapter, :dump_name, :dump_path, :dump_dir
+      attr_accessor :settings, :adapter, :bootstrap_dir
 
       def initialize(loaded_settings)
         self.settings = loaded_settings[Rails.env]
         self.adapter  = self.settings["adapter"].to_sym
 
-        self.dump_path = ENV['FILE'] || File.join(default_dump_path, ENV['FILE_NAME'] || default_dump_name)
-        self.dump_name = File.basename(self.dump_path)
-        self.dump_dir  = File.dirname(self.dump_path)
+        self.bootstrap_dir = ENV['BOOTSTRAP_DIR'] || default_directory
+
+        ensure_bootstrap_dir_exists!
       end
 
       def self.load!(configuration_path = File.join(Rails.root, DB_CONFIG_PATH))
@@ -30,17 +30,13 @@ module Bootstrap
 
       private
 
-        def default_dump_path
-          @default_dump_path ||= File.join(Rails.root, 'db', 'bootstrap')
+        def default_directory
+          @default_directory ||= File.join(Rails.root, 'db', 'bootstrap')
         end
 
-        def default_dump_name
-          @default_dump_name ||= case self.adapter
-          when :postgresql
-            'bootstrap_data.dump' #Custom format 'c'
-          else
-            'bootstrap_data.sql' #MySQL
-          end
+        def ensure_bootstrap_dir_exists!
+          #Create directories if they don't exist
+          Dir.mkdir bootstrap_dir unless File.exists?(bootstrap_dir)
         end
     end
   end

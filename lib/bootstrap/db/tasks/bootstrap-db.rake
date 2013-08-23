@@ -42,7 +42,8 @@ namespace :bootstrap do
 
       when :postgresql
         #pg_dump --help
-        default_sql_attrs = "--clean --create --format=c"
+        #trial without --clean
+        default_sql_attrs = "--create --format=c"
 
         if ignore_tables.present?
           ignore_tables.each do |table_name|
@@ -80,7 +81,8 @@ namespace :bootstrap do
       when :postgresql
         #--clean --create --single-transaction
         # cannot use --create and --single-transaction together
-        default_sql_attrs = "--clean --single-transaction --format=c"
+        #--clean
+        default_sql_attrs = "--single-transaction --format=c"
         user_attribute    = " --username=#{settings["username"]}" if settings['username']
         display_and_execute("pg_restore #{default_sql_attrs} --host=#{settings["host"]} --port=#{settings["port"] || 5432} --dbname=#{settings["database"]}#{user_attribute} #{config.dump_path}")
       else
@@ -91,7 +93,7 @@ namespace :bootstrap do
     end
 
     desc "Load a SQL dump and rebase the time to this point in time"
-    task :load_and_rebase => ['db:load_config', 'db:structure:load', :load] do
+    task :load_and_rebase => ['db:load_config', :load] do
       config    = Bootstrap::Db::Config.load!
       settings  = config.settings[Rails.env].symbolize_keys
       raise "Unable to find dump at location - '#{config.dump_path}'" unless File.exists?(config.dump_path)
@@ -168,11 +170,35 @@ namespace :bootstrap do
         # Get start point
         #cmd = "SELECT MIN(created_at) FROM CUSTOMERS"
         #result = display_and_execute("#{psql_command} --command='#{cmd}'")
-        start_point = "2013-08-03 22:30:27.000000"
 
+        STDERR.puts ENV['ZONEBIE_TZ'].inspect
+        STDERR.puts ENV['TZ'].inspect
+        STDERR.puts "I HAS ZONE STUFF"
+        if time_zone = (ENV['ZONEBIE_TZ'] || ENV['TZ'])
+          STDERR.puts "CUSTOM ZONE: #{time_zone}"
+          #Handle custom timezones
+          Time.zone = time_zone
+          new_point = Time.zone.now.to_formatted_s(:db)
+          start_point = "2013-08-01 22:44:33.000000"
+          #start_point = Time.zone.parse(start_point).to_formatted_s(:db)
+        else
+          # Default to 'now' in the local timestamp
+          new_point = "localtimestamp"
+          start_point = "2013-08-01 22:44:33.000000"
+        end
+
+        STDERR.puts "NEW_POINT : #{new_point}"
+        STDERR.puts "start_point : #{start_point}"
+
+
+        #Working (3rd aug)
+        #start_point = "2013-08-03 22:30:27.000000"
+        #test without create on dump
+        #start_point = "2013-08-01 22:44:33.000000"
         #new_point = Time.zone.now.to_formatted_s(:db)
+        #new_point = "localtimestamp"
         # Rebase time
-        cmd = "SELECT rebase_db_time('#{start_point}'::timestamp without time zone, localtimestamp::timestamp without time zone);"
+        cmd = "SELECT rebase_db_time('#{start_point}'::timestamp without time zone, '#{new_point}'::timestamp without time zone);"
         puts cmd
         result = display_and_execute("#{psql_command} --command=#{cmd.shellescape}")
         puts "RESULT : "

@@ -73,8 +73,7 @@ module Bootstrap
         rebase_to   = current_db_time
 
         rebase_cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{rebase_to}'::timestamp);"
-        result = display_and_execute("#{psql_execute} --command=#{rebase_cmd.shellescape}")
-        log(result.inspect)
+        display_and_execute("#{psql_execute} --command=#{rebase_cmd.shellescape}")
       end
 
       private
@@ -128,7 +127,6 @@ module Bootstrap
 
         #Set current bootstrap generated time
         settings[:generated_on][file_path] = current_db_time
-        puts settings.inspect
 
         #Save settings file
         File.open(settings_path, "w") do |file|

@@ -1,15 +1,14 @@
--- Original generation time : 2013-08-03 22:30:27
 -- Setup functions
 
 -- Rebase time values to a fixed point
 CREATE OR REPLACE FUNCTION rebase_time(
-    fixed_point timestamp without time zone,
-    new_point timestamp without time zone,
-    original_time timestamp without time zone)
-  RETURNS timestamp without time zone AS
+    fixed_point timestamp,
+    new_point timestamp,
+    original_time timestamp)
+  RETURNS timestamp AS
 $$
 DECLARE
-  result timestamp without time zone := new_point;
+  result timestamp := new_point;
 BEGIN
   IF (original_time = fixed_point) THEN
     result := new_point;
@@ -52,7 +51,10 @@ LANGUAGE 'plpgsql' STABLE;
 
 --Rebase all date/timestamp values in db to a fixed point
 --Returns the number of rows affected
-CREATE OR REPLACE FUNCTION rebase_db_time(fixed_point timestamp without time zone, new_point timestamp without time zone)
+CREATE OR REPLACE FUNCTION rebase_db_time(
+    fixed_point timestamp,
+    new_point timestamp
+  )
   RETURNS integer AS
 $$
 DECLARE
@@ -103,8 +105,3 @@ BEGIN
 END;
 $$
 LANGUAGE 'plpgsql' VOLATILE;
-
----2013-08-13 07:14:39
---SELECT rebase_db_time('2013-07-24 12:26:50.598673'::timestamp without time zone);
---SELECT rebase_db_time('2013-07-24 12:26:50.598673'::timestamp, '2013-08-13 07:14:39.000000'::timestamp);
---SELECT rebase_db_time('2013-07-14'::date);

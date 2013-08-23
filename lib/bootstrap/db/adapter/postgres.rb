@@ -12,8 +12,6 @@ module Bootstrap
       def connection_string
         @connection_string ||= begin
           CONNECTION_PARAMS.inject([]) do |result, element|
-            puts config.inspect
-            puts config.settings[element.to_s]
             config_value = config.settings[element.to_s] || CONFIG_DEFAULTS[element]
             result << "--#{element}='#{config_value}'" if config_value
             result
@@ -47,19 +45,10 @@ module Bootstrap
         display_and_execute(dump_command.join(' '))
       end
 
-
-        default_sql_attrs =
-        user_attribute    = " --username=#{settings["username"]}" if settings['username']
-        display_and_execute("pg_restore #{default_sql_attrs}
-          --host=#{settings["host"]}
-          --port=#{settings["port"] || 5432}
-          #{user_attribute} #{config.dump_path}")
-
-
       def load!
         #pg_restore --help
         load_command = [
-          "pg_dump",
+          "pg_restore",
           "--single-transaction --format=c",
           "--dbname='#{config.settings["database"]}'",
           connection_string,
@@ -69,9 +58,54 @@ module Bootstrap
         display_and_execute(load_command.join(' '))
       end
 
+      def rebase!
+        load_rebase_functions
+
+        # REDO THIS
+        cmd = "SELECT MIN(created_at) FROM CUSTOMERS"
+        result = display_and_execute("#{psql_execute} --command='#{cmd}'")
+        log(result.inspect)
+        #TODO: Make this better!
+        start_point = result.scan(/(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{6})/).flatten.first
+
+
+        if time_zone = (ENV['ZONEBIE_TZ'] || ENV['TZ'])
+          STDERR.puts "CUSTOM ZONE: #{time_zone}"
+          #Handle custom timezones
+          Time.zone = time_zone
+          new_point = Time.zone.now.to_formatted_s(:db)
+          #start_point = "2013-08-01 22:44:33.000000"
+          #start_point = Time.zone.parse(start_point).to_formatted_s(:db)
+        else
+          # Default to 'now' in the local timestamp
+          new_point = "localtimestamp"
+          #start_point = "2013-08-01 22:44:33.000000"
+        end
+
+        cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{new_point}'::timestamp);"
+        puts cmd
+        result = display_and_execute("#{psql_execute} --command=#{cmd.shellescape}")
+        puts "RESULT : "
+        puts result.inspect
+
+      end
+
       private
 
+      def psql_execute
+        @psql_execute ||= begin
+          [
+            'psql',
+            connection_string,
+            "--dbname='#{config.settings['database']}'"
+          ].join(' ')
+        end
+      end
 
+      def load_rebase_functions
+        function_sql_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
+        display_and_execute("#{psql_execute} --file='#{function_sql_path}'")
+      end
     end
   end
 end

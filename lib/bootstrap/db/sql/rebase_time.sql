@@ -72,11 +72,12 @@ BEGIN
     WHERE
     table_schema = 'public'
     AND data_type IN
-    ('timestamp without time zone',
+    (
+    'timestamp without time zone',
     'timestamp with time zone',
-    'date')
+    'date'
+    )
     ORDER BY table_name DESC ) LOOP
-  --'date'
     IF column_data.data_type = 'date' THEN
       function_name := 'rebase_date';
     ELSE

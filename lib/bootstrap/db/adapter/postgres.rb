@@ -47,6 +47,7 @@ module Bootstrap
         result = display_and_execute(dump_command.join(' '))
 
         save_generated_time!
+        save_frozen_attributes!
 
         result
       end
@@ -115,6 +116,19 @@ module Bootstrap
         generated_time
       end
 
+      # Save any attributes tracked during seeding
+      # Will override any existing after a dump
+      def save_frozen_attributes!
+        settings = current_settings
+        settings[:frozen] = {} #Override any existing
+
+        #Set attributes for any frozen
+        frozen_attributes = ::Bootstrap::Db::Rebase.frozen
+        settings[:frozen] = frozen_attributes if frozen_attributes
+
+        save_settings!(settings)
+      end
+
       # Save and track generated time of bootstrap
       def save_generated_time!
         settings = current_settings
@@ -128,6 +142,10 @@ module Bootstrap
         #Set current bootstrap generated time
         settings[:generated_on][file_path] = current_db_time
 
+        save_settings!(settings)
+      end
+
+      def save_settings!(settings = {})
         #Save settings file
         File.open(settings_path, "w") do |file|
           file.write settings.to_yaml

@@ -23,7 +23,6 @@ namespace :bootstrap do
       bootstrap.dump!
 
       log "Dump completed --> '#{bootstrap.file_path}'"
-      log "Frozen time : #{Bootstrap::Db::Rebase.frozen}"
     end
 
     desc "Load a SQL dump into the current environment"

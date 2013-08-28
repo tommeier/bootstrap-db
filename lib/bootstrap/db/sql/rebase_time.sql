@@ -53,16 +53,15 @@ LANGUAGE 'plpgsql' STABLE;
 --Rebase all date/timestamp values in db to a fixed point
 --Returns the number of rows affected
 CREATE OR REPLACE FUNCTION rebase_db_time(
-    fixed_point timestamp,
     new_point timestamp
   )
   RETURNS integer AS
 $$
 DECLARE
+  fixed_point timestamp := (SELECT generated_at FROM bootstrap_db LIMIT 1);
   column_data record;
   update_command varchar := '';
   function_name varchar := '';
-  fixed_point_type varchar := '';
   update_result integer := 0;
   result integer := 0;
 BEGIN

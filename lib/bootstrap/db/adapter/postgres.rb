@@ -22,7 +22,7 @@ module Bootstrap
       end
 
       def dump!
-        save_frozen_attributes!
+        pre_dump_prepare!
 
         #pg_dump --help
         dump_command = [
@@ -47,9 +47,7 @@ module Bootstrap
         dump_command << config.settings['database']
 
         result = display_and_execute(dump_command.join(' '))
-
         save_generated_time!
-
 
         result
       end
@@ -68,14 +66,9 @@ module Bootstrap
       end
 
       def rebase!
-        generated_time = load_generated_time!
-
-        load_rebase_functions!
-
-        start_point = generated_time
         rebase_to   = current_db_time
+        rebase_cmd  = "SELECT rebase_db_time('#{rebase_to}'::timestamp);"
 
-        rebase_cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{rebase_to}'::timestamp);"
         display_and_execute("#{psql_execute} --command=#{rebase_cmd.shellescape}")
       end
 
@@ -91,86 +84,36 @@ module Bootstrap
         end
       end
 
-      def load_rebase_functions!
-        function_sql_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
-        display_and_execute("#{psql_execute} --file='#{function_sql_path}'")
-      end
-
       def default_file_name
         'bootstrap_data.dump' #Custom format 'c'
       end
 
-      def load_generated_time!
-        settings = current_settings
+      def pre_dump_prepare!
+        dump_table_commands = File.read(File.expand_path('../../sql/dump_tables.sql', __FILE__))
+        rebase_commands     = File.read(File.expand_path('../../sql/rebase_time.sql', __FILE__))
 
-        generated_times = settings[:generated_on]
-        generated_time = generated_times && generated_times[file_path]
-
-        unless generated_time
-          error_message =<<-ERR
-          Error - Cannot find generated time. Please recreate dump.
-          A generated time is required to know how to rebase time correctly.
-          Looking in: #{settings_path}
-          ERR
-          raise MissingSettingsFileError.new(error_message)
-        end
-
-        generated_time
-      end
-
-      def save_frozen_attributes!
-        # Load frozen attributes into table
-        # Rebase task will exclude this if it exists
-        # Override any existing
-        frozen_tables = File.read(File.expand_path('../../sql/frozen_attributes.sql', __FILE__))
-
-        frozen_command = <<-SQL.gsub(/^\s+/,'')
-          #{frozen_tables}
+        pre_dump_command = <<-SQL.gsub(/^\s+/,'')
+          #{dump_table_commands}
+          #{rebase_commands}
           #{frozen_insert_commands}
         SQL
 
-        display_and_execute("#{psql_execute} --command=#{frozen_command.shellescape}")
-        # exit 1
-        # settings = current_settings
-        # settings[:frozen] = {} #Override any existing
-
-        # #Set attributes for any frozen
-        # frozen_attributes = ::Bootstrap::Db::Rebase.frozen
-        # settings[:frozen] = frozen_attributes if frozen_attributes
-
-        # save_settings!(settings)
+        display_and_execute("#{psql_execute} --command=#{pre_dump_command.shellescape}")
       end
 
       # Save and track generated time of bootstrap
       def save_generated_time!
-        settings = current_settings
-        settings[:generated_on] ||= {}
-
-        #Clear any bootstraps that may have been removed
-        settings[:generated_on].each do |file, generated_time|
-          settings[:generated_on].delete(file) unless File.exists?(file)
-        end
-
-        #Set current bootstrap generated time
-        settings[:generated_on][file_path] = current_db_time
-
-        save_settings!(settings)
+        display_and_execute("#{psql_execute} --command=#{generated_insert_command.shellescape}")
       end
 
-      def save_settings!(settings = {})
-        #Save settings file
-        File.open(settings_path, "w") do |file|
-          file.write settings.to_yaml
-        end
-      end
-
-      def current_settings
-        return {} unless File.exists?(settings_path)
-        YAML::load_file(settings_path) || {}
-      end
-
-      def settings_path
-        @settings_path ||= File.expand_path(File.join(config.bootstrap_dir, '.bootstrap'))
+      #Update generated at value for dump
+      def generated_insert_command
+        insert_command = <<-SQL.gsub(/^\s+/,'')
+        INSERT INTO bootstrap_db
+          (generated_at, file_path)
+        VALUES
+          ('#{current_db_time}', '#{file_path}');
+        SQL
       end
 
       # Generate bulk insert statement for any frozen attributes

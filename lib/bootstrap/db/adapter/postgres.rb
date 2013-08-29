@@ -47,7 +47,6 @@ module Bootstrap
         dump_command << config.settings['database']
 
         result = display_and_execute(dump_command.join(' '))
-        save_generated_time!
 
         result
       end
@@ -96,14 +95,10 @@ module Bootstrap
           #{dump_table_commands}
           #{rebase_commands}
           #{frozen_insert_commands}
+          #{generated_insert_command}
         SQL
 
         display_and_execute("#{psql_execute} --command=#{pre_dump_command.shellescape}")
-      end
-
-      # Save and track generated time of bootstrap
-      def save_generated_time!
-        display_and_execute("#{psql_execute} --command=#{generated_insert_command.shellescape}")
       end
 
       #Update generated at value for dump

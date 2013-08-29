@@ -22,6 +22,12 @@ CREATE TABLE bootstrap_icebox (
 
 -- Primary keys
 
+ALTER TABLE ONLY bootstrap_db
+    ADD CONSTRAINT bootstrap_db_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY bootstrap_icebox
+    ADD CONSTRAINT bootstrap_icebox_pkey PRIMARY KEY (id);
+
 -- Handle primary key auto sequence
 CREATE SEQUENCE bootstrap_db_id_seq
     START WITH 1

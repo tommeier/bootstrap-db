@@ -47,6 +47,8 @@ module Bootstrap
         result = display_and_execute(dump_command.join(' '))
 
         save_generated_time!
+        save_frozen!
+        save_post_processing!
 
         result
       end
@@ -74,6 +76,8 @@ module Bootstrap
 
         rebase_cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{rebase_to}'::timestamp);"
         display_and_execute("#{psql_execute} --command=#{rebase_cmd.shellescape}")
+
+        run_post_rebase_commands!
       end
 
       private
@@ -115,6 +119,61 @@ module Bootstrap
         generated_time
       end
 
+      def run_post_rebase_commands!
+        #Load frozen or eval post process commands and calculate
+        settings = current_settings
+
+        # TODO: Only fire command once (compile command if spike proven)
+        frozen = settings[:frozen]
+        if frozen
+          frozen_command = frozen_update_commands(frozen)
+          puts "Frozen attributes command: #{frozen_command}"
+          display_and_execute("#{psql_execute} --command=#{frozen_command.shellescape}")
+        end
+
+        #TODO: post process commands
+        puts "Rebase post process commands:"
+        post_process = settings[:post_processing]
+        if post_process
+          puts post_process.inspect
+          puts "Running post process commands"
+          run_post_process_commands(post_process)
+        end
+
+      end
+
+      def run_post_process_commands(post_process_attributes)
+        Time.zone ||= 'Melbourne'
+
+        post_process_attributes.each do |table_name, process_fields|
+          table_command = " UPDATE #{table_name} SET"
+          process_fields.each do |field_name, attributes|
+            eval_value = Bootstrap::Db::Sandbox.run(attributes[:value])
+            puts "Eval: #{attributes[:value]} = #{eval_value}"
+            #update_command << "#{table_command} #{field_name} = '#{attributes[:value]}' WHERE id IN (#{attributes[:ids].join(',')});"
+          end
+        end
+
+      end
+
+      def frozen_update_commands(frozen_attributes)
+        # { table_name => {
+        #     field_name => {
+        #       ids => [1,3,4,5],
+        #       value => 'Something'
+        #     }
+        # }
+        # TODO: make frozen track objects instead of ids, then just send on the field, and has access to id
+        update_command = ""
+        frozen_attributes.each do |table_name, frozen_fields|
+          table_command = " UPDATE #{table_name} SET"
+          frozen_fields.each do |field_name, attributes|
+            update_command << "#{table_command} #{field_name} = '#{attributes[:value]}' WHERE id IN (#{attributes[:ids].join(',')});"
+          end
+        end
+        "#{update_command.chop};"
+       end
+
       # Save and track generated time of bootstrap
       def save_generated_time!
         settings = current_settings
@@ -127,6 +186,39 @@ module Bootstrap
 
         #Set current bootstrap generated time
         settings[:generated_on][file_path] = current_db_time
+
+        #Save settings file
+        File.open(settings_path, "w") do |file|
+          file.write settings.to_yaml
+        end
+      end
+
+      # TODO: Only run one write to file in settings generation
+      # Save and track post processing commands
+      def save_post_processing!
+        settings = current_settings
+        settings[:post_processing] = {}
+
+        #Set current bootstrap generated time
+        #settings[:post_processing][file_path] = current_db_time
+        if ::Bootstrap::Db::Rebase.post_processing
+          settings[:post_processing] = ::Bootstrap::Db::Rebase.post_processing
+        end
+
+        #Save settings file
+        File.open(settings_path, "w") do |file|
+          file.write settings.to_yaml
+        end
+      end
+
+      # Save and track generated time of bootstrap
+      def save_frozen!
+        settings = current_settings
+        settings[:frozen] = {}
+
+        if ::Bootstrap::Db::Rebase.frozen
+          settings[:frozen] = ::Bootstrap::Db::Rebase.frozen
+        end
 
         #Save settings file
         File.open(settings_path, "w") do |file|

@@ -29,6 +29,7 @@ module Bootstrap
 
       # Run any
       def self.run(eval_command)
+        log eval_command
         SANDBOX.run(TIMELORD, eval_command)
       end
     end

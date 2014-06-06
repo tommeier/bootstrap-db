@@ -34,10 +34,16 @@ module Bootstrap
         end
       end
 
+      # Assign timezone if specified in environment, already set, or default to UTC
+      # Required for accurate rebase times in post_process commands
+      def set_time_zone!
+        if Time.respond_to?(:zone)
+          Time.zone = (ENV['TZ'] || ENV['ZONEBIE_TZ'] || Time.zone || 'UTC')
+        end
+      end
+
       def current_db_time
-        if Time.respond_to?(:zone) &&
-           (time_zone = (ENV['TZ'] || ENV['ZONEBIE_TZ'] || Time.zone))
-          Time.zone = time_zone
+        if Time.respond_to?(:zone) && set_time_zone!
           Time.zone.now
         else
           Time.now

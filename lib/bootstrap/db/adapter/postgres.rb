@@ -67,6 +67,8 @@ module Bootstrap
       end
 
       def rebase!
+        set_time_zone!
+
         generated_time = load_generated_time!
 
         load_rebase_functions!
@@ -127,7 +129,7 @@ module Bootstrap
         frozen = settings[:frozen]
         if frozen
           frozen_command = frozen_update_commands(frozen)
-          puts "Frozen attributes command: #{frozen_command}"
+          log "Frozen attributes command: #{frozen_command}"
           display_and_execute("#{psql_execute} --command=#{frozen_command.shellescape}")
         end
 
@@ -135,25 +137,33 @@ module Bootstrap
         puts "Rebase post process commands:"
         post_process = settings[:post_processing]
         if post_process
-          puts post_process.inspect
-          puts "Running post process commands"
-          run_post_process_commands(post_process)
+          log "Running post process commands"
+          post_process_command = post_process_commands(post_process)
+          log post_process_command
+          display_and_execute("#{psql_execute} --command=#{post_process_command.shellescape}")
         end
 
       end
 
-      def run_post_process_commands(post_process_attributes)
-        Time.zone ||= 'Melbourne'
-
+      def post_process_commands(post_process_attributes)
+        # { table_name => {
+        #     field_name => {
+        #       value => ids,
+        #       'some value' => [1,2,4,5]
+        #     }
+        # }
+        update_command = ""
         post_process_attributes.each do |table_name, process_fields|
           table_command = " UPDATE #{table_name} SET"
-          process_fields.each do |field_name, attributes|
-            eval_value = Bootstrap::Db::Sandbox.run(attributes[:value])
-            puts "Eval: #{attributes[:value]} = #{eval_value}"
-            #update_command << "#{table_command} #{field_name} = '#{attributes[:value]}' WHERE id IN (#{attributes[:ids].join(',')});"
+          process_fields.each do |field_name, assignments|
+            assignments.each do |value, ids|
+              eval_value = Bootstrap::Db::Sandbox.run(value)
+              #.to_formatted_s(:db)
+              update_command << "#{table_command} #{field_name} = '#{eval_value}' WHERE id IN (#{ids.join(',')});"
+            end
           end
         end
-
+        "#{update_command.chop};"
       end
 
       def frozen_update_commands(frozen_attributes)
@@ -167,8 +177,10 @@ module Bootstrap
         update_command = ""
         frozen_attributes.each do |table_name, frozen_fields|
           table_command = " UPDATE #{table_name} SET"
-          frozen_fields.each do |field_name, attributes|
-            update_command << "#{table_command} #{field_name} = '#{attributes[:value]}' WHERE id IN (#{attributes[:ids].join(',')});"
+          frozen_fields.each do |field_name, assignments|
+            assignments.each do |value, ids|
+              update_command << "#{table_command} #{field_name} = '#{value}' WHERE id IN (#{ids.join(',')});"
+            end
           end
         end
         "#{update_command.chop};"

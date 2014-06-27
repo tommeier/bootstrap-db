@@ -46,7 +46,8 @@ module Bootstrap
 
         result = display_and_execute(dump_command.join(' '))
 
-        save_generated_time!
+        remove_old_bootstrap_settings!
+        save_metadata!
         save_frozen!
         save_post_processing!
 
@@ -68,15 +69,68 @@ module Bootstrap
 
       def rebase!
         set_time_zone!
-
-        generated_time = load_generated_time!
-
         load_rebase_functions!
 
-        start_point = generated_time
-        rebase_to   = current_db_time
+        generated_time       = load_generated_time!
+        rebase_to            = current_time.to_s(:db)
+        metadata             = bootstrap_settings[:metadata] || {}
+        generated_utc_offset = metadata[:generated_utc_offset]
+        local_offset         = Time.zone.now.utc_offset
 
-        rebase_cmd = "SELECT rebase_db_time('#{start_point}'::timestamp, '#{rebase_to}'::timestamp);"
+        STDOUT.puts "> local_offset           : #{local_offset}"
+        STDOUT.puts "> generated_utc_offset   : #{generated_utc_offset}"
+        STDOUT.puts "> current_time           : #{current_time}"
+        STDOUT.puts "> generated_time         : #{generated_time}"
+
+        # Database was generated in a different time zone
+        # to one being loaded into.
+        # Rebase must factor in offset differential for accurate values
+        unless generated_utc_offset == local_offset
+          generated_time = Time.zone.parse(generated_time)
+
+          if generated_time > current_time
+            # Reset to current time with difference removed
+            generated_time = current_time - (generated_time - current_time).seconds
+          end
+
+          if generated_utc_offset > local_offset
+            # Remove the time zone differential
+            generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
+            STDOUT.puts ">> WITHIN generated_utc_offset > local_offset"
+            if local_offset < 0 && generated_utc_offset < 0 then
+              STDOUT.puts "+-> BOTH ARE LESS THAN 0"
+              # Test here
+              generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
+            elsif local_offset > 0 && generated_utc_offset > 0 then
+              STDOUT.puts "+-> BOTH ARE GREATER THAN 0"
+              generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
+            else
+              STDOUT.puts "+-> ONE IS DIFFERENT"
+              generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(1st Jan 2nd jan)
+            end
+          else #generated_utc_offset < local_offset
+            STDOUT.puts ">> WITHIN generated_utc_offset < local_offset"
+            if generated_time > current_time
+              STDOUT.puts ">>>> generated_time > current_time"
+            else
+              STDOUT.puts ">>>> generated_time < current_time"
+            end
+
+            if local_offset < 0 && generated_utc_offset < 0 then
+              STDOUT.puts "+-> BOTH ARE LESS THAN 0"
+            elsif local_offset > 0 && generated_utc_offset > 0 then
+              STDOUT.puts "+-> BOTH ARE GREATER THAN 0"
+            else
+              STDOUT.puts "+-> ONE IS DIFFERENT"
+              generated_time = generated_time + (generated_utc_offset.abs + local_offset.abs).seconds #(1st Jan 2nd jan)
+            end
+          end
+          generated_time = generated_time.to_s(:db)
+        else
+          STDOUT.puts "FUCK TIME ZONES"
+        end
+
+        rebase_cmd = "SELECT rebase_db_time('#{generated_time}'::TIMESTAMP, '#{rebase_to}'::TIMESTAMP);"
         display_and_execute("#{psql_execute} --command=#{rebase_cmd.shellescape}")
 
         run_post_rebase_commands!
@@ -104,17 +158,14 @@ module Bootstrap
       end
 
       def load_generated_time!
-        settings = current_settings
-
-        generated_times = settings[:generated_on]
-        generated_time = generated_times && generated_times[file_path]
-
+        metadata = bootstrap_settings[:metadata] || {}
+        generated_time = metadata[:generated_on]
         unless generated_time
           error_message =<<-ERR
           Error - Cannot find generated time. Please recreate dump.
-          A generated time is required to know how to rebase time correctly.
-          Looking in: #{settings_path}
-          ERR
+            A generated time is required to know how to rebase time correctly.
+            Looking in: #{settings_path} for #{file_path}
+            ERR
           raise MissingSettingsFileError.new(error_message)
         end
 
@@ -122,27 +173,23 @@ module Bootstrap
       end
 
       def run_post_rebase_commands!
-        #Load frozen or eval post process commands and calculate
-        settings = current_settings
-
+        # Load frozen or eval post process commands and calculate
         # TODO: Only fire command once (compile command if spike proven)
-        frozen = settings[:frozen]
-        if frozen
+        frozen = bootstrap_settings[:frozen]
+        unless frozen.empty?
           frozen_command = frozen_update_commands(frozen)
           log "Frozen attributes command: #{frozen_command}"
           display_and_execute("#{psql_execute} --command=#{frozen_command.shellescape}")
         end
 
-        #TODO: post process commands
-        puts "Rebase post process commands:"
-        post_process = settings[:post_processing]
-        if post_process
-          log "Running post process commands"
+        post_process = bootstrap_settings[:post_processing]
+        unless post_process.empty?
           post_process_command = post_process_commands(post_process)
+          log "Running post process commands"
+          log "post_process: #{post_process_command.inspect}"
           log post_process_command
           display_and_execute("#{psql_execute} --command=#{post_process_command.shellescape}")
         end
-
       end
 
       def post_process_commands(post_process_attributes)
@@ -184,63 +231,77 @@ module Bootstrap
           end
         end
         "#{update_command.chop};"
-       end
+      end
 
-      # Save and track generated time of bootstrap
-      def save_generated_time!
-        settings = current_settings
-        settings[:generated_on] ||= {}
+      # Save and track generated time of bootstrap with other metadata
+      def save_metadata!
+        settings = bootstrap_settings
+        settings[:metadata] ||= {}
 
-        #Clear any bootstraps that may have been removed
-        settings[:generated_on].each do |file, generated_time|
-          settings[:generated_on].delete(file) unless File.exists?(file)
-        end
-
+        STDOUT.puts "Saving metadata generated_on as : #{current_time.to_s}"
         #Set current bootstrap generated time
-        settings[:generated_on][file_path] = current_db_time
+        settings[:metadata][:generated_on] = current_time.to_s(:db)
+        #Set current offset at point of generation
+        settings[:metadata][:generated_utc_offset] = Time.zone.utc_offset
 
-        #Save settings file
-        File.open(settings_path, "w") do |file|
-          file.write settings.to_yaml
-        end
+        save_bootstrap_settings!(settings)
       end
 
       # TODO: Only run one write to file in settings generation
       # Save and track post processing commands
       def save_post_processing!
-        settings = current_settings
-        settings[:post_processing] = {}
+        log "Post process settings: #{current_settings}"
+        settings = bootstrap_settings
+        settings[:post_processing] ||= {}
 
         #Set current bootstrap generated time
-        #settings[:post_processing][file_path] = current_db_time
         if ::Bootstrap::Db::Rebase.post_processing
           settings[:post_processing] = ::Bootstrap::Db::Rebase.post_processing
         end
 
-        #Save settings file
-        File.open(settings_path, "w") do |file|
-          file.write settings.to_yaml
-        end
+        save_bootstrap_settings!(settings)
       end
 
       # Save and track generated time of bootstrap
       def save_frozen!
-        settings = current_settings
+        settings = bootstrap_settings
         settings[:frozen] = {}
 
         if ::Bootstrap::Db::Rebase.frozen
           settings[:frozen] = ::Bootstrap::Db::Rebase.frozen
         end
 
-        #Save settings file
+        save_bootstrap_settings!(settings)
+      end
+
+      def save_settings!(settings)
         File.open(settings_path, "w") do |file|
           file.write settings.to_yaml
         end
       end
 
+      def save_bootstrap_settings!(new_settings)
+        save_settings!(current_settings.merge("#{file_path}" => new_settings))
+      end
+
+      def remove_old_bootstrap_settings!
+        stripped_settings = current_settings
+
+        #Clear any bootstraps that may have been removed
+        stripped_settings.each do |file_path, bootstrap_data|
+          stripped_settings.delete(file_path) unless File.exists?(file_path)
+        end
+
+        save_settings!(stripped_settings) unless stripped_settings == current_settings
+      end
+
       def current_settings
         return {} unless File.exists?(settings_path)
         YAML::load_file(settings_path) || {}
+      end
+
+      def bootstrap_settings
+        current_settings[file_path] || {}
       end
 
       def settings_path

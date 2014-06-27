@@ -107,3 +107,16 @@ Working example:
 4. Create some tests
 5. Push to the branch (`git push origin my-new-feature`)
 6. Create new Pull Request
+
+
+
+## Appendix
+
+### How to to generate dummy rails app for test structure (use when updating rails)
+
+  * Command for dummy rails app
+  * Scaffolding request objects:
+    * `rails generate scaffold TimeData subject:text time_value:time timestamp_value:timestamp`
+    * `rails generate scaffold DateData subject:text date_value:date datetime_value:datetime`
+
+

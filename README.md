@@ -4,12 +4,12 @@
 
 To be able to load and dump a database as quickly as possible.
 Primary use is to load a large dataset quickly, with practical applications for running
-test suites (with extensive seed data).
+test suites (with extensive/complex seed data).
 
-Some projects require extensive seed data, with many complex values, which can take excessive time to generate. The idea of this project is to create a 'snapshot' in time of this generated seed data, and be able to load almost instantly. With the time rebase task, this can also have the time and dates rebased to the current time, allowing relative time tests to work.
+Some projects require extensive seed data, with many complex values, which can take an excessive time to generate. The idea of this project is to create a 'snapshot' in time of this generated seed data, and be able to load almost instantly. With the time rebase task, this can also have the time and dates rebased to the current time, allowing relative time tests to work.
 
 For example:
- * Running a project with multiple customer types and scenarios, with complex underlying data. This takes around ~55 seconds to generate. You don't want to run this for *every single test* you run. So on change of the data, recreate the dump, and set the test suite to load. Now it will take ~1 second.
+ * Running a project with multiple customer types and scenarios, with complex underlying data. This takes around ~55 seconds to generate. You don't want to run this for *every single test* you run. So on change of the seed data, recreate the dump, and set the test suite to load. Now it will take ~1 second.
 
 ## Add this line to your application's Gemfile:
 

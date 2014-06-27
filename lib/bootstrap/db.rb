@@ -2,7 +2,6 @@ require 'bootstrap/db/version'
 
 module Bootstrap
   module Db
-
     # Error when unable to find '.bootstrap' file when required
     class MissingSettingsFileError < StandardError; end
   end

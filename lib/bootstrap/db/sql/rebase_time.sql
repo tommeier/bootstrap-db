@@ -62,7 +62,6 @@ DECLARE
   column_data record;
   update_command varchar := '';
   function_name varchar := '';
-  fixed_point_type varchar := '';
   update_result integer := 0;
   result integer := 0;
 BEGIN

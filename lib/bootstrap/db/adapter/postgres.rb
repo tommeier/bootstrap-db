@@ -86,46 +86,138 @@ module Bootstrap
         # to one being loaded into.
         # Rebase must factor in offset differential for accurate values
         unless generated_utc_offset == local_offset
-          generated_time = Time.zone.parse(generated_time)
+          # Time.zone = 'UTC'
+          #generated_time = ActiveSupport::TimeZone['UTC'].parse(generated_time)
+          #generated_time = ActiveSupport::TimeZone["Nuku'alofa"].parse(generated_time)
+          generated_time = ActiveSupport::TimeZone["American Samoa"].parse(generated_time)
 
-          if generated_time > current_time
-            # Reset to current time with difference removed
-            generated_time = current_time - (generated_time - current_time).seconds
+          if current_time >= generated_time
+            STDOUT.puts "++>>> current_time > generated_time"
+            #generated_time -= (generated_time - current_time).seconds
+          else
+            STDOUT.puts "++<<< current_time < generated_time"
+            #SHOULD ADD TO TIME:
+            #[bootstrap-db] Rebasing database time relative to now...
+            # Setting with zone : 2014-06-27 04:35:57 -0300
+            # > local_offset           : -10800
+            # > generated_utc_offset   : -39600
+            # Setting with zone : 2014-06-27 04:35:57 -0300
+            # > current_time           : 2014-06-27 04:35:57 -0300
+            # > generated_time         : 2014-06-27 07:33:06
+            # Setting with zone : 2014-06-27 04:35:57 -0300
+            # ++<<< current_time < generated_time
+            # Setting with zone : 2014-06-27 04:35:57 -0300
+            # Parsed generated_time : 2014-06-26 20:35:57 -1100
+            # >+> Generated output : 2014-06-27 07:35:57
+
+            # American Samoa generated
+            # ZONEBIE_TZ="Azores" FUB_UPDATE=false be rspec --tag wip spec/features/activity/filter_activity_feed.feature
+            # ZONEBIE_TZ="Atlantic Time (Canada)" FUB_UPDATE=false be rspec --tag wip spec/features/activity/filter_activity_feed.feature
+            # ZONEBIE_TZ="American Samoa" FUB_UPDATE=false be rspec --tag wip spec/features/activity/filter_activity_feed.feature
+            # ZONEBIE_TZ="Yerevan" FUB_UPDATE=false be rspec --tag wip spec/features/activity/filter_activity_feed.feature
+            #generated_time += (current_time - generated_time).seconds
+            #generated_time -= (current_time - generated_time).abs.seconds
+
+            # Failed
+            # ZONEBIE_TZ="Nuku'alofa" FUB_UPDATE=false be rspec --tag wip spec/features/activity/filter_activity_feed.feature
+            STDOUT.puts "Result : (current_time - generated_time) : #{(current_time - generated_time)}"
+            if local_offset <= 0 && generated_utc_offset <= 0
+              generated_time += (current_time - generated_time).seconds
+            elsif local_offset >= 0 && generated_utc_offset >= 0
+              generated_time -= offset_diff(local_offset, generated_utc_offset).seconds
+            else
+              generated_time
+            end
+
+
+            #generated_time -= (current_time - generated_time).seconds
           end
 
-          if generated_utc_offset > local_offset
-            # Remove the time zone differential
-            generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
-            STDOUT.puts ">> WITHIN generated_utc_offset > local_offset"
-            if local_offset < 0 && generated_utc_offset < 0 then
-              STDOUT.puts "+-> BOTH ARE LESS THAN 0"
-              # Test here
-              generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
-            elsif local_offset > 0 && generated_utc_offset > 0 then
-              STDOUT.puts "+-> BOTH ARE GREATER THAN 0"
-              generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
-            else
-              STDOUT.puts "+-> ONE IS DIFFERENT"
-              generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(1st Jan 2nd jan)
-            end
-          else #generated_utc_offset < local_offset
-            STDOUT.puts ">> WITHIN generated_utc_offset < local_offset"
-            if generated_time > current_time
-              STDOUT.puts ">>>> generated_time > current_time"
-            else
-              STDOUT.puts ">>>> generated_time < current_time"
-            end
 
-            if local_offset < 0 && generated_utc_offset < 0 then
-              STDOUT.puts "+-> BOTH ARE LESS THAN 0"
-            elsif local_offset > 0 && generated_utc_offset > 0 then
-              STDOUT.puts "+-> BOTH ARE GREATER THAN 0"
-            else
-              STDOUT.puts "+-> ONE IS DIFFERENT"
-              generated_time = generated_time + (generated_utc_offset.abs + local_offset.abs).seconds #(1st Jan 2nd jan)
-            end
-          end
+
+
+          # FAILED
+          # Setting with zone : 2014-06-27 20:28:23 +1300
+          # > local_offset           : 46800
+          # > generated_utc_offset   : -39600
+          # Setting with zone : 2014-06-27 20:28:23 +1300
+          # > current_time           : 2014-06-27 20:28:23 +1300
+          # > generated_time         : 2014-06-27 07:26:53
+          # Setting with zone : 2014-06-27 20:28:23 +1300
+          # ++<<< current_time < generated_time
+          # Setting with zone : 2014-06-27 20:28:23 +1300
+          # Parsed generated_time : 2014-06-26 20:28:23 -1100
+
+
+
+
+
+
+          #generated_time = Time.zone.parse(generated_time)
+
+          #generated_zone = metadata[:]
+
+#           Setting with zone : 2014-06-27 06:35:44 +0000
+# > local_offset           : 0
+# > generated_utc_offset   : 46800
+# Setting with zone : 2014-06-27 06:35:44 +0000
+# > current_time           : 2014-06-27 06:35:44 +0000
+# > generated_time         : 2014-06-27 06:29:55
+# Setting with zone : 2014-06-27 06:35:44 +0000
+# << local_offset < generated_utc_offset
+# BOTH ABOVE OR BELOW GMT
+          STDOUT.puts "Parsed generated_time : #{generated_time}"
+
+          # if generated_time > current_time
+          #   STDOUT.puts ">> generated_time > current_time"
+          # #   # Reset to current time with difference removed
+          #   generated_time = current_time - (generated_time - current_time).seconds
+          # end
+
+          # if local_offset > generated_utc_offset
+
+          #   STDOUT.puts ">> local_offset > generated_utc_offset"
+          #   generated_time += offset_diff(local_offset, generated_utc_offset).seconds
+          # else
+          #   STDOUT.puts "<< local_offset < generated_utc_offset"
+          #   #generated_time
+          #   generated_time -= offset_diff(local_offset, generated_utc_offset).seconds
+
+
+          #   #generated_time -= (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
+          # end
+
+
+
+#           if generated_utc_offset > local_offset
+#             STDOUT.puts "<< generated_utc_offset > local_offset"
+#             # Remove the time zone differential
+#             generated_time = generated_time - (generated_utc_offset.abs + local_offset.abs).seconds #(31st Dec + 1st Jan) .parse
+#           else #generated_utc_offset < local_offset
+#             # Add time zone differential
+#             # generated_time = generated_time + (generated_utc_offset.abs + local_offset.abs).seconds #(1st Jan 2nd jan)
+#             STDOUT.puts ">> WITHIN generated_utc_offset < local_offset"
+#             if local_offset < 0 && generated_utc_offset < 0 then
+#               STDOUT.puts "+-> BOTH ARE LESS THAN 0"
+
+#               # Cannot do it here
+#             elsif local_offset > 0 && generated_utc_offset > 0 then
+#               STDOUT.puts "+-> BOTH ARE GREATER THAN 0"
+#               generated_time = generated_time + (generated_utc_offset.abs + local_offset.abs).seconds #(1st Jan 2nd jan)
+#             else
+#               STDOUT.puts "+-> ONE IS DIFFERENT"
+
+# #[bootstrap-db] Database rebase completed...
+
+#               if local_offset > generated_utc_offset
+#                 generated_time += offset_diff(local_offset, generated_utc_offset).seconds
+#               else
+#                 generated_time -= offset_diff(local_offset, generated_utc_offset).seconds
+#               end
+#             end
+#           end
           generated_time = generated_time.to_s(:db)
+          STDOUT.puts ">+> Generated output : #{generated_time}"
         else
           STDOUT.puts "FUCK TIME ZONES"
         end
@@ -243,6 +335,7 @@ module Bootstrap
         settings[:metadata][:generated_on] = current_time.to_s(:db)
         #Set current offset at point of generation
         settings[:metadata][:generated_utc_offset] = Time.zone.utc_offset
+        settings[:metadata][:generated_time_zone] = Time.zone.name
 
         save_bootstrap_settings!(settings)
       end
@@ -306,6 +399,47 @@ module Bootstrap
 
       def settings_path
         @settings_path ||= File.expand_path(File.join(config.bootstrap_dir, '.bootstrap'))
+      end
+
+#       Setting with zone : 2014-06-27 19:09:25 +1300
+# > local_offset           : 46800
+# > generated_utc_offset   : -39600
+# > current_time           : 2014-06-27 19:09:25 +1300
+# > generated_time         : 2014-06-27 06:07:50
+# Setting with zone : 2014-06-27 19:09:25 +1300
+# >> WITHIN generated_utc_offset < local_offset
+# +-> ONE IS DIFFERENT
+
+      def offset_diff(first_offset, second_offset)
+        if (first_offset > 0 && second_offset > 0) ||
+           (first_offset < 0 && second_offset < 0)
+          #both above GMT or both behind GMT
+          STDOUT.puts "BOTH ABOVE OR BELOW GMT"
+          if first_offset > second_offset
+            first_offset.abs - second_offset.abs
+          else
+            second_offset.abs - first_offset.abs
+          end
+        elsif first_offset <= 0 && second_offset >= 0
+          #first is before GMT, second is after GMT
+          STDOUT.puts "FIRST BEFORE GMT, SECOND AFTER GMT"
+          first_offset.abs + second_offset
+
+        elsif first_offset >= 0 && second_offset <= 0
+          #first is after GMT, second is before GMT
+          STDOUT.puts "FIRST AFTER GMT, SECOND BEFORE GMT"
+          second_offset.abs + first_offset.abs
+        else
+          raise "FUCKING HELL. Unhandled situation."
+        end
+
+
+
+        # if first_number > second_number
+        #   first_number.abs - second_number.abs
+        # else
+        #   second_number.abs - first_number.abs
+        # end
       end
     end
   end

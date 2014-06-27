@@ -42,12 +42,14 @@ module Bootstrap
         end
       end
 
-      def current_db_time
+      def current_time
         if Time.respond_to?(:zone) && set_time_zone!
+          STDOUT.puts "Setting with zone : #{Time.zone.now}"
           Time.zone.now
         else
+          STDOUT.puts "Setting without zone : #{Time.now}"
           Time.now
-        end.to_formatted_s(:db)
+        end
       end
     end
   end

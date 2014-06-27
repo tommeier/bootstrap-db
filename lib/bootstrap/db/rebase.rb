@@ -4,8 +4,12 @@ module Bootstrap
   module Db
     class Rebase
       include Shikashi
+      #TODO: Check if timezone function must be sent original offset? To apply new timezone
+      #TODO: Can we glean table_name from activemodel objects and skip passing table name?
 
       #TODO: track "*objects" and no need for value then, can just object.send(field_name)
+      #TODO: extend active model to be able to:
+      #       model_object.bootstrap_freeze!(:field_name)
       def self.freeze!(table_name, field_name, value, *ids)
         @_frozen_attributes ||= {}
         @_frozen_attributes[table_name] ||= {}
@@ -28,6 +32,8 @@ module Bootstrap
       end
 
       # TODO: DRY this up if spike works out
+      #TODO: extend active model to be able to:
+      #       model_object.bootstrap_post_process!(:field_name, 'code for post processing')
       def self.post_process!(table_name, field_name, value, *ids)
         @_post_process ||= {}
         @_post_process[table_name] ||= {}

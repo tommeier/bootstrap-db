@@ -12,8 +12,10 @@ describe "SQL" do
       expect(ActiveRecord::Base.connection.execute("select proname from pg_proc where proname = 'rebase_db_time';").values).to be_present
     end
 
-
     context "when database values are in past" do
+      before do
+
+      end
       it "should rebase all values to new point"
     end
 

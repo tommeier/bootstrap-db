@@ -1,0 +1,19 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Subject:</strong>
+  <%= @date_datum.subject %>
+</p>
+
+<p>
+  <strong>Date value:</strong>
+  <%= @date_datum.date_value %>
+</p>
+
+<p>
+  <strong>Datetime value:</strong>
+  <%= @date_datum.datetime_value %>
+</p>
+
+<%= link_to 'Edit', edit_date_datum_path(@date_datum) %> |
+<%= link_to 'Back', date_data_path %>

@@ -1,0 +1,19 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Subject:</strong>
+  <%= @time_datum.subject %>
+</p>
+
+<p>
+  <strong>Time value:</strong>
+  <%= @time_datum.time_value %>
+</p>
+
+<p>
+  <strong>Timestamp value:</strong>
+  <%= @time_datum.timestamp_value %>
+</p>
+
+<%= link_to 'Edit', edit_time_datum_path(@time_datum) %> |
+<%= link_to 'Back', time_data_path %>

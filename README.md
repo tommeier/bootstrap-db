@@ -115,9 +115,11 @@ Working example:
 ### How to to generate dummy rails app for test structure (use when updating rails)
 
   * Command for dummy rails app
-    * `cd spec`
-    * `rails plugin new dummy --full --skip-bundle --skip-gemspec --skip-test-unit --skip-sprockets --skip-javascript --skip-gemfile --skip-git`
+    * `rails plugin new my_gem --no-skip-test-unit`
+    * copy the generated test/dummy folder into gem spec/dummy
+
   * Scaffolding request objects:
+    * `cd spec/dummy`
     * `rails generate scaffold time_data subject:text time_value:time timestamp_value:timestamp --no-resource-route --no-stylesheets --no-assets --no-fixture --no-javascripts`
     * `rails generate scaffold date_data subject:text date_value:date datetime_value:datetime --no-resource-route --no-stylesheets --no-assets --no-fixture --no-javascripts`
 

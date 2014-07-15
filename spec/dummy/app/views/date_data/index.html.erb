@@ -1,0 +1,29 @@
+<h1>Listing date_data</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Subject</th>
+      <th>Date value</th>
+      <th>Datetime value</th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @date_data.each do |date_datum| %>
+      <tr>
+        <td><%= date_datum.subject %></td>
+        <td><%= date_datum.date_value %></td>
+        <td><%= date_datum.datetime_value %></td>
+        <td><%= link_to 'Show', date_datum %></td>
+        <td><%= link_to 'Edit', edit_date_datum_path(date_datum) %></td>
+        <td><%= link_to 'Destroy', date_datum, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Date datum', new_date_datum_path %>

@@ -11,26 +11,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20140225070319) do
+ActiveRecord::Schema.define(version: 20140715113805) do
 
-  create_table "error_duplicators", force: true do |t|
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
+  create_table "date_data", force: true do |t|
     t.text     "subject"
-    t.text     "body"
-    t.boolean  "published"
+    t.date     "date_value"
+    t.datetime "datetime_value"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
 
-  add_index "error_duplicators", ["subject"], name: "index_error_duplicators_on_subject", unique: true
-
-  create_table "example_prgs", force: true do |t|
+  create_table "time_data", force: true do |t|
     t.text     "subject"
-    t.text     "body"
-    t.boolean  "published"
+    t.time     "time_value"
+    t.datetime "timestamp_value"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
-
-  add_index "example_prgs", ["subject"], name: "index_example_prgs_on_subject", unique: true
 
 end

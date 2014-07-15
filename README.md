@@ -118,7 +118,7 @@ Working example:
     * `cd spec`
     * `rails plugin new dummy --full --dummy-path=spec/dummy --skip-bundle --skip-gemspec --skip-test-unit --skip-sprockets --skip-javascript --skip-gemfile --skip-git`
   * Scaffolding request objects:
-    * `rails generate scaffold --skip-javascript --skip-git --skip-sprockets --skip-spring --skip-keeps -skip-gemfile TimeData subject:text time_value:time timestamp_value:timestamp`
+    * `rails generate scaffold time_data subject:text time_value:time timestamp_value:timestamp --no-resource-route --no-stylesheets --no-assets --no-fixture --no-javascripts`
     * `rails generate scaffold DateData subject:text date_value:date datetime_value:datetime`
 
 

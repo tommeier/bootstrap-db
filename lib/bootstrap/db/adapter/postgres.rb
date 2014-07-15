@@ -51,6 +51,11 @@ module Bootstrap
         result
       end
 
+      def load_rebase_functions!
+        function_sql_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
+        display_and_execute("#{psql_execute} --file='#{function_sql_path}'")
+      end
+
       def load!
         #pg_restore --help
         load_command = [
@@ -86,11 +91,6 @@ module Bootstrap
             "--dbname='#{config.settings['database']}'"
           ].join(' ')
         end
-      end
-
-      def load_rebase_functions!
-        function_sql_path = File.expand_path('../../sql/rebase_time.sql', __FILE__)
-        display_and_execute("#{psql_execute} --file='#{function_sql_path}'")
       end
 
       def default_file_name

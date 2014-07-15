@@ -1,0 +1,15 @@
+development:
+  adapter: postgresql
+  host: 127.0.0.1
+  port: <%= ENV['BOXEN_POSTGRESQL_PORT'] || 5432 %>
+  username:
+  password:
+  database: bootstrap_db_development
+
+test: &test_config
+  adapter: postgresql
+  host: 127.0.0.1
+  port: <%= ENV['BOXEN_POSTGRESQL_PORT'] || 5432 %>
+  username:
+  password:
+  database: bootstrap_db_test

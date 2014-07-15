@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+# Initialise test database
+pushd "spec/dummy"
+  RAILS_ENV=test bundle exec rake "db:create"
+popd
+
+bundle exec rake spec

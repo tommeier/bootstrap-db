@@ -1,108 +1,73 @@
--- Setup functions for being able to rebase time + date values
--- from a point the db data was generated to a new point.
-
--- Rebase time values to a fixed point
-CREATE OR REPLACE FUNCTION rebase_time(
-    fixed_point timestamp,
-    new_point timestamp,
-    original_time timestamp)
-  RETURNS timestamp AS
-$$
-DECLARE
-  result timestamp := new_point;
-BEGIN
-  IF (original_time = fixed_point) THEN
-    result := new_point;
-  ELSIF (original_time < fixed_point) THEN
-    -- Original time was set in the past
-    result :=  (new_point - (fixed_point - original_time));
-  ELSIF (original_time > fixed_point) THEN
-    -- Original time was set in the future
-    result :=  (new_point + (original_time - fixed_point));
-  END IF;
-  --RAISE NOTICE 'Original: %, New: %', original_time, result;
-  RETURN result;
-END;
-$$
-LANGUAGE 'plpgsql' STABLE;
-
---Rebase date values to a fixed point
-CREATE OR REPLACE FUNCTION rebase_date(
-    fixed_point date,
-    new_point date,
-    original date)
-  RETURNS date AS
-$$
-DECLARE
-  result date := new_point;
-BEGIN
-IF (original = fixed_point) THEN
-  result := new_point;
-ELSIF (original < fixed_point) THEN
-  -- Original was set in the past
-  result :=  (new_point - (fixed_point - original));
-ELSE
-  -- Original was set in the future
-  result :=  (new_point + (original - fixed_point));
-END IF;
-RETURN result;
-END;
-$$
-LANGUAGE 'plpgsql' STABLE;
-
---Rebase all date/timestamp values in db to a fixed point
---Returns the number of rows affected
+-- Rebase all date/timestamp values in db to a relative point in future/past
+-- Returns the number of rows affected
 CREATE OR REPLACE FUNCTION rebase_db_time(
-    fixed_point timestamp,
-    new_point timestamp
+    fixed_point timestamp with time zone,
+    new_point timestamp with time zone
   )
   RETURNS integer AS
 $$
 DECLARE
   column_data record;
   update_command varchar := '';
-  function_name varchar := '';
-  fixed_point_type varchar := '';
   update_result integer := 0;
   result integer := 0;
+  epoch_diff double precision;
+  operator varchar := '+';
 BEGIN
-  FOR column_data IN (
-    SELECT table_name, column_name, data_type
-    FROM information_schema.columns
-    WHERE
-    table_schema = 'public'
-    AND data_type IN
-    ('timestamp without time zone',
-    'timestamp with time zone',
-    'date')
-    ORDER BY table_name DESC ) LOOP
-  --'date'
-    IF column_data.data_type = 'date' THEN
-      function_name := 'rebase_date';
-    ELSE
-      function_name := 'rebase_time';
-    END IF;
+  IF (new_point = fixed_point) THEN
+    epoch_diff := NULL;
+  ELSIF (new_point < fixed_point) THEN
+    epoch_diff := (SELECT EXTRACT(EPOCH FROM (fixed_point - new_point)));
+    operator := '-';
+  ELSE
+    epoch_diff := (SELECT EXTRACT(EPOCH FROM (new_point - fixed_point)));
+    operator := '+';
+  END IF;
 
-    update_command := format('UPDATE %s SET %I = %s(%L::%s, %L::%s, %s.%s::%s);',
-        column_data.table_name,
-        column_data.column_name,
-        function_name,
-        fixed_point,
-        column_data.data_type,
-        new_point,
-        column_data.data_type,
-        column_data.table_name,
-        column_data.column_name,
-        column_data.data_type);
+  IF ((epoch_diff > 0) AND (new_point <> fixed_point)) THEN
+    FOR column_data IN (
+      SELECT table_name, column_name, data_type
+      FROM information_schema.columns
+      WHERE
+      table_schema = 'public'
+      AND data_type IN
+      ('timestamp without time zone',
+      'timestamp with time zone',
+      'date')
+      ORDER BY table_name DESC ) LOOP
 
-    --RAISE EXCEPTION '%', update_command;
-    EXECUTE update_command;
+      IF column_data.data_type = 'date' THEN
+        update_command := format('UPDATE %s SET %I = (((%I::date + %L::time)::timestamp with time zone %s %L::time)::timestamp %s interval ''%s seconds'')::date;',
+            column_data.table_name,     --UPDATE table_name
+            column_data.column_name,    --SET column_name =
+            column_data.column_name,    --column_name (current value)
+            fixed_point,                -- append time original date was generated
+            operator,                   -- append/deduct (only) time difference to rebased time
+            new_point,                  -- append/deduct (only) time difference to rebased time
+            operator,                   -- append/deduct the total difference to the new rebased time
+            epoch_diff
+        );
+      ELSE
+        update_command := format('UPDATE %s SET %I = (%I %s interval ''%s seconds'');',
+            column_data.table_name,     -- UPDATE table_name
+            column_data.column_name,    -- SET column_name =
+            column_data.column_name,    -- column_name (current value)
+            operator,                   -- append/deduct
+            epoch_diff                  -- epoch difference
+        );
+      END IF;
+      EXECUTE update_command;
+      --RAISE EXCEPTION '%', update_command;
 
-    GET DIAGNOSTICS update_result := ROW_COUNT;
-    result := result + update_result;
-  END LOOP;
-  --RAISE EXCEPTION '%', result;
-  RETURN result;
+      GET DIAGNOSTICS update_result := ROW_COUNT;
+      result := result + update_result;
+    END LOOP;
+    --RAISE EXCEPTION '%', result;
+    RETURN result;
+  ELSE
+    -- Points are the same or no epoch diff and should skip updating
+    RETURN NULL;
+  END IF;
 END;
 $$
 LANGUAGE 'plpgsql' VOLATILE;

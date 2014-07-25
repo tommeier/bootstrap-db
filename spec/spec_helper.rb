@@ -7,6 +7,7 @@ require File.expand_path("../dummy/config/environment", __FILE__)
 require 'bootstrap-db'
 require 'rspec/rails'
 require 'database_cleaner'
+require 'timecop'
 
 Rails.backtrace_cleaner.remove_silencers!
 ActiveRecord::Migration.maintain_test_schema!

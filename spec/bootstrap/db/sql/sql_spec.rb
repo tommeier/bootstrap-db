@@ -1,39 +1,6 @@
 require 'spec_helper'
 
 describe "SQL" do
-
-  def generate_data_for_time!(
-      time,
-      message = "Generated for #{time} in #{Time.zone}"
-    )
-    raise "Expected time with zone!" unless time.is_a?(ActiveSupport::TimeWithZone)
-    date_values = {
-      subject:        message,
-      date_value:     time.to_date,
-      datetime_value: time.to_datetime
-    }
-    date_model = DateDatum.create!(date_values)
-
-    time_values = {
-      subject:         message,
-      time_value:      time.strftime("%H:%M:%S"), #strip to just time saved
-      timestamp_value: time
-    }
-    time_model = TimeDatum.create!(time_values)
-    return [date_model, time_model]
-  end
-
-  def rebase_database!(snapshot_generated_at, rebase_database_to)
-    rebase_cmd = <<-SQL
-    SELECT rebase_db_time(
-      '#{snapshot_generated_at.to_s(:db)}'::timestamp with time zone,
-      '#{rebase_database_to.to_s(:db)}'::timestamp with time zone
-      );
-    SQL
-
-    ActiveRecord::Base.connection.execute(rebase_cmd)
-  end
-
   RSpec.shared_examples "a database with all values set at" do
     context "date values" do
       subject { DateDatum.first }
@@ -187,5 +154,39 @@ describe "SQL" do
         end
       end
     end
+  end
+
+  # helpers
+
+  def generate_data_for_time!(
+      time,
+      message = "Generated for #{time} in #{Time.zone}"
+    )
+    raise "Expected time with zone!" unless time.is_a?(ActiveSupport::TimeWithZone)
+    date_values = {
+      subject:        message,
+      date_value:     time.to_date,
+      datetime_value: time.to_datetime
+    }
+    date_model = DateDatum.create!(date_values)
+
+    time_values = {
+      subject:         message,
+      time_value:      time.strftime("%H:%M:%S"), #strip to just time saved
+      timestamp_value: time
+    }
+    time_model = TimeDatum.create!(time_values)
+    return [date_model, time_model]
+  end
+
+  def rebase_database!(snapshot_generated_at, rebase_database_to)
+    rebase_cmd = <<-SQL
+    SELECT rebase_db_time(
+      '#{snapshot_generated_at.to_s(:db)}'::timestamp with time zone,
+      '#{rebase_database_to.to_s(:db)}'::timestamp with time zone
+      );
+    SQL
+
+    ActiveRecord::Base.connection.execute(rebase_cmd)
   end
 end
